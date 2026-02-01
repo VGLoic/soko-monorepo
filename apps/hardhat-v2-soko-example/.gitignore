@@ -23,5 +23,5 @@
 .env
 
 # Soko files
-.soko
-.soko-typings
+.soko/
+.soko-typings/
