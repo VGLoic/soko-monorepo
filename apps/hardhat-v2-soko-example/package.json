@@ -7,7 +7,7 @@
     "check-format": "prettier --check --ignore-unknown --plugin=prettier-plugin-solidity 'src/**/*.sol' \"scripts\"",
     "format-contracts": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol'",
     "format": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol' 'scripts/**/*.ts'",
-    "compile": "pnpm run format-contracts && hardhat compile --force ",
+    "compile": "pnpm run format-contracts && hardhat compile --force --no-typechain",
     "hardhat": "hardhat",
     "check-types": "tsc --noEmit"
   },
