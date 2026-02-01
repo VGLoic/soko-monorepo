@@ -1,5 +1,5 @@
 {
-  "name": "hardhat-v2-soko-example",
+  "name": "hardhat-v2-external-lib",
   "version": "1.0.0",
   "scripts": {
     "test": "hardhat test",

@@ -55,7 +55,7 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
-  apps/hardhat-v2-soko-example:
+  apps/hardhat-v2-external-lib:
     devDependencies:
       '@nomicfoundation/hardhat-ignition':
         specifier: ^0.15.16
