@@ -26,7 +26,10 @@ if (
   };
 }
 
-export const config: HardhatUserConfig = {
+// Issue with hardhat config typing and module augmentation
+// It works fine when importing the build package directly but does not work in the monorepo setup
+// As a workaround, we cast the config to include the soko field
+export const config: HardhatUserConfig & { soko?: SokoHardhatUserConfig } = {
   namedAccounts: {
     deployer: {
       default: 0, // First account is taken as deployer
