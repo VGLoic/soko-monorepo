@@ -8,6 +8,7 @@
     "format-contracts": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol'",
     "format": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol' 'scripts/**/*.ts'",
     "compile": "pnpm run format-contracts && hardhat compile --force --no-typechain",
+    "deploy-contracts": "hardhat deploy --no-compile",
     "hardhat": "hardhat",
     "check-types": "tsc --noEmit"
   },
