@@ -420,7 +420,7 @@ sokoScope
   .task("typings", "Generate typings based on the existing artifacts.")
   .addFlag(
     "aa",
-    `Fake flag - Task description: Generate typings based on the existing artifacts.
+    `REMIND ME Fake flag - Task description: Generate typings based on the existing artifacts.
 The typings will be generated in the configured typings path.
 
 `,
