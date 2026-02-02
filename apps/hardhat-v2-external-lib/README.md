@@ -38,6 +38,8 @@ It will first pull the compilation artifacts from `Soko`:
 npx hardhat soko pull
 ```
 
+REMIND ME: Add image of list output once more beautiful
+
 Then, generates the typings in order to write a type-safe deployment script:
 
 ```bash
@@ -45,6 +47,56 @@ npx hardhat soko typings
 ```
 
 Finally, the deployer can write a deployment script, e.g. [00-deploy-counter-v1.0.1.ts](./deploy/00-deploy-counter-v1.0.1.ts), that will retrieve the compilation artifacts from `Soko` and deploy the contracts accordingly.
+
+```ts
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { DeployFunction } from "hardhat-deploy/types";
+import { project } from "../.soko-typings";
+
+const TARGET_RELEASE = "v1.0.1";
+
+const deployCounter: DeployFunction = async function (
+  hre: HardhatRuntimeEnvironment,
+) {
+  const { deployer } = await hre.getNamedAccounts();
+
+  // Get project utilities for the target release
+  const projectUtils = project("doubtful-counter").tag(TARGET_RELEASE);
+
+  // Get the `IncrementOracle` artifact for the target release and deploy it
+  const incrementOracleArtifact = await projectUtils.getContractArtifact(
+    "src/IncrementOracle.sol:IncrementOracle",
+  );
+  const incrementOracleDeployment = await hre.deployments.deploy(
+    `IncrementOracle@${TARGET_RELEASE}`,
+    {
+      contract: {
+        abi: incrementOracleArtifact.abi,
+        bytecode: incrementOracleArtifact.evm.bytecode.object,
+        metadata: incrementOracleArtifact.metadata,
+      },
+      from: deployer,
+    },
+  );
+
+  // Get the `Counter` artifact for the target release and deploy it
+  const counterArtifact = await projectUtils.getContractArtifact(
+    "src/Counter.sol:Counter",
+  );
+  await hre.deployments.deploy(`Counter@${TARGET_RELEASE}`, {
+    contract: {
+      abi: counterArtifact.abi,
+      bytecode: counterArtifact.evm.bytecode.object,
+      metadata: counterArtifact.metadata,
+    },
+    libraries: {
+      "src/IncrementOracle.sol:IncrementOracle":
+        incrementOracleDeployment.address,
+    },
+    from: deployer,
+  });
+};
+```
 
 The deployment script can be executed using the Hardhat-Deploy plugin:
 
