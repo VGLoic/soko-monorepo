@@ -1,3 +1,4 @@
+import { Stream } from "stream";
 import {
   CopyObjectCommand,
   GetObjectCommand,
@@ -6,8 +7,9 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { AssumeRoleCommand, STSClient } from "@aws-sdk/client-sts";
 import { NodeJsClient } from "@smithy/types";
-import { Stream } from "stream";
+import { LOG_COLORS, ScriptError } from "./utils";
 
 export interface StorageProvider {
   listTags(project: string): Promise<string[]>;
@@ -29,33 +31,125 @@ type S3BucketProviderConfig = {
   bucketRegion: string;
   accessKeyId: string;
   secretAccessKey: string;
+  role?: {
+    roleArn: string;
+    externalId?: string;
+    sessionName?: string;
+    durationSeconds?: number;
+  };
+  debug?: boolean;
   rootPath?: string;
 };
+
+type RoleCredentials = {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken: string;
+};
+
 export class S3BucketProvider implements StorageProvider {
   private readonly config: S3BucketProviderConfig;
-  private readonly client: NodeJsClient<S3Client>;
+  private client: NodeJsClient<S3Client> | undefined;
   private readonly rootPath: string;
 
   constructor(config: S3BucketProviderConfig) {
-    const s3Client: NodeJsClient<S3Client> = new S3Client({
-      region: config.bucketRegion,
+    this.config = config;
+    this.rootPath = config.rootPath || "projects";
+  }
+
+  private async getClient(): Promise<NodeJsClient<S3Client>> {
+    if (this.client) {
+      return this.client;
+    }
+
+    if (!this.config.role) {
+      this.client = new S3Client({
+        region: this.config.bucketRegion,
+        credentials: {
+          accessKeyId: this.config.accessKeyId,
+          secretAccessKey: this.config.secretAccessKey,
+        },
+      });
+      return this.client;
+    }
+
+    const roleCredentials = await this.getRoleCredentials();
+    this.client = new S3Client({
+      region: this.config.bucketRegion,
       credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
+        accessKeyId: roleCredentials.accessKeyId,
+        secretAccessKey: roleCredentials.secretAccessKey,
+        sessionToken: roleCredentials.sessionToken,
+      },
+    });
+    return this.client;
+  }
+
+  private async getRoleCredentials(): Promise<RoleCredentials> {
+    const role = this.config.role;
+    if (!role) {
+      throw new ScriptError("Role configuration is missing");
+    }
+
+    const stsClient = new STSClient({
+      region: this.config.bucketRegion,
+      credentials: {
+        accessKeyId: this.config.accessKeyId,
+        secretAccessKey: this.config.secretAccessKey,
       },
     });
 
-    this.rootPath = config.rootPath || "projects";
-    this.config = config;
-    this.client = s3Client;
+    const sessionName = role.sessionName || "soko-hardhat-session";
+
+    const assumeRoleCommand = new AssumeRoleCommand({
+      RoleArn: role.roleArn,
+      RoleSessionName: sessionName,
+      ExternalId: role.externalId,
+      DurationSeconds: role.durationSeconds,
+    });
+
+    let response;
+    try {
+      response = await stsClient.send(assumeRoleCommand);
+    } catch (error) {
+      throw new ScriptError(
+        `Failed to assume role "${role.roleArn}": ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    const credentials = response.Credentials;
+    if (
+      !credentials ||
+      !credentials.AccessKeyId ||
+      !credentials.SecretAccessKey ||
+      !credentials.SessionToken
+    ) {
+      throw new ScriptError(
+        `Failed to assume role "${role.roleArn}": missing credentials`,
+      );
+    }
+
+    if (this.config.debug) {
+      console.error(
+        LOG_COLORS.log,
+        `Assumed role ${role.roleArn} with session ${sessionName} (access key ${credentials.AccessKeyId}, expires ${credentials.Expiration})`,
+      );
+    }
+
+    return {
+      accessKeyId: credentials.AccessKeyId,
+      secretAccessKey: credentials.SecretAccessKey,
+      sessionToken: credentials.SessionToken,
+    };
   }
 
   public async listIds(project: string): Promise<string[]> {
+    const client = await this.getClient();
     const listCommand = new ListObjectsV2Command({
       Bucket: this.config.bucketName,
       Prefix: `${this.rootPath}/${project}/ids/`,
     });
-    const listResult = await this.client.send(listCommand);
+    const listResult = await client.send(listCommand);
     const contents = listResult.Contents;
     if (!contents) {
       return [];
@@ -73,11 +167,12 @@ export class S3BucketProvider implements StorageProvider {
   }
 
   public async listTags(project: string): Promise<string[]> {
+    const client = await this.getClient();
     const listCommand = new ListObjectsV2Command({
       Bucket: this.config.bucketName,
       Prefix: `${this.rootPath}/${project}/tags/`,
     });
-    const listResult = await this.client.send(listCommand);
+    const listResult = await client.send(listCommand);
     const contents = listResult.Contents;
     if (!contents) {
       return [];
@@ -98,11 +193,12 @@ export class S3BucketProvider implements StorageProvider {
     project: string,
     tag: string,
   ): Promise<boolean> {
+    const client = await this.getClient();
     const headCommand = new GetObjectCommand({
       Bucket: this.config.bucketName,
       Key: `${this.rootPath}/${project}/tags/${tag}.json`,
     });
-    const headResult = await this.client.send(headCommand).catch((err) => {
+    const headResult = await client.send(headCommand).catch((err) => {
       if (err instanceof NoSuchKey) {
         return null;
       }
@@ -112,11 +208,12 @@ export class S3BucketProvider implements StorageProvider {
   }
 
   public async hasArtifactById(project: string, id: string): Promise<boolean> {
+    const client = await this.getClient();
     const headCommand = new GetObjectCommand({
       Bucket: this.config.bucketName,
       Key: `${this.rootPath}/${project}/ids/${id}.json`,
     });
-    const headResult = await this.client.send(headCommand).catch((err) => {
+    const headResult = await client.send(headCommand).catch((err) => {
       if (err instanceof NoSuchKey) {
         return null;
       }
@@ -131,6 +228,7 @@ export class S3BucketProvider implements StorageProvider {
     tag: string | undefined,
     content: string,
   ): Promise<void> {
+    const client = await this.getClient();
     const idKey = `${this.rootPath}/${project}/ids/${id}.json`;
 
     const putIdCommand = new PutObjectCommand({
@@ -138,7 +236,7 @@ export class S3BucketProvider implements StorageProvider {
       Key: idKey,
       Body: content,
     });
-    await this.client.send(putIdCommand);
+    await client.send(putIdCommand);
 
     if (tag) {
       const copyCommand = new CopyObjectCommand({
@@ -146,7 +244,7 @@ export class S3BucketProvider implements StorageProvider {
         Key: `${this.rootPath}/${project}/tags/${tag}.json`,
         CopySource: `${this.config.bucketName}/${idKey}`,
       });
-      await this.client.send(copyCommand);
+      await client.send(copyCommand);
     }
   }
 
@@ -154,11 +252,12 @@ export class S3BucketProvider implements StorageProvider {
     project: string,
     id: string,
   ): Promise<Stream> {
+    const client = await this.getClient();
     const getObjectCommand = new GetObjectCommand({
       Bucket: this.config.bucketName,
       Key: `${this.rootPath}/${project}/ids/${id}.json`,
     });
-    const getObjectResult = await this.client.send(getObjectCommand);
+    const getObjectResult = await client.send(getObjectCommand);
     if (!getObjectResult.Body) {
       throw new Error("Error fetching the artifact");
     }
@@ -170,11 +269,12 @@ export class S3BucketProvider implements StorageProvider {
     project: string,
     tag: string,
   ): Promise<Stream> {
+    const client = await this.getClient();
     const getObjectCommand = new GetObjectCommand({
       Bucket: this.config.bucketName,
       Key: `${this.rootPath}/${project}/tags/${tag}.json`,
     });
-    const getObjectResult = await this.client.send(getObjectCommand);
+    const getObjectResult = await client.send(getObjectCommand);
     if (!getObjectResult.Body) {
       throw new Error("Error fetching the artifact");
     }

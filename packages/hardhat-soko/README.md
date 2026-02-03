@@ -34,6 +34,13 @@ export const config: HardhatUserConfig = {
       awsBucketName: MY_AWS_S3_BUCKET,
       awsAccessKeyId: MY_AWS_ACCESS_KEY_ID,
       awsSecretAccessKey: MY_AWS_SECRET_ACCESS_KEY,
+      // Optional IAM role assumption
+      awsRole: {
+        roleArn: MY_AWS_ROLE_ARN,
+        externalId: MY_AWS_EXTERNAL_ID, // Optional, required if role policy enforces it
+        sessionName: "soko-hardhat-session", // Optional, default is "soko-hardhat-session"
+        durationSeconds: 3600, // Optional, 900-43200 (must be allowed by role)
+      },
     },
     debug: false, // If true, all tasks are running with debug mode enabled, default to `false`
   },
@@ -219,7 +226,16 @@ Before using Soko with AWS S3, one need to create an S3 bucket and have AWS cred
 - `awsAccessKeyId`: AWS access key ID of the credentials
 - `awsSecretAccessKey`: AWS secret access key of the credentials.
 
+Optionally, you can assume an IAM role using the provided credentials:
+
+- `awsRole.roleArn`: ARN of the IAM role to assume
+- `awsRole.externalId`: Optional external ID for cross-account role assumption
+- `awsRole.sessionName`: Optional role session name (default: `soko-hardhat-session`)
+- `awsRole.durationSeconds`: Optional session duration in seconds (900-43200)
+
 Make sure the credentials used have the right permissions to read and write objects in the S3 bucket.
+
+When `awsRole` is provided, Soko assumes the role using the access key and secret key, and uses the temporary credentials for S3 operations. The credentials are cached in memory for the duration of the task.
 
 It is possible to use a single bucket for multiple projects, Soko will handle the organization of the artifacts within the bucket.
 

@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.624.0",
+    "@aws-sdk/client-sts": "^3.624.0",
     "@ethersproject/keccak256": "^5.7.0",
     "@ethersproject/strings": "^5.7.0",
     "@smithy/types": "^3.3.0",

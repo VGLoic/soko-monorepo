@@ -42,6 +42,12 @@ export type SokoHardhatUserConfig = {
     awsBucketName: string;
     awsAccessKeyId: string;
     awsSecretAccessKey: string;
+    awsRole?: {
+      roleArn: string;
+      externalId?: string;
+      sessionName?: string;
+      durationSeconds?: number;
+    };
   };
   /**
    * Enable debug mode for all tasks
@@ -61,6 +67,14 @@ const SokoHardhatConfig = z.object({
     awsBucketName: z.string().min(1),
     awsAccessKeyId: z.string().min(1),
     awsSecretAccessKey: z.string().min(1),
+    awsRole: z
+      .object({
+        roleArn: z.string().min(1),
+        externalId: z.string().min(1).optional(),
+        sessionName: z.string().min(1).default("soko-hardhat-session"),
+        durationSeconds: z.number().int().min(900).max(43200).default(3600),
+      })
+      .optional(),
   }),
   debug: z.boolean().default(false),
 });
@@ -195,6 +209,8 @@ Already downloaded artifacts are not downloaded again by default, enable the for
       bucketRegion: sokoConfig.storageConfiguration.awsRegion,
       accessKeyId: sokoConfig.storageConfiguration.awsAccessKeyId,
       secretAccessKey: sokoConfig.storageConfiguration.awsSecretAccessKey,
+      role: sokoConfig.storageConfiguration.awsRole,
+      debug: optsParsingResult.data.debug,
     });
 
     const localProvider = new LocalStorageProvider(
@@ -358,6 +374,8 @@ If the provided tag already exists in the storage, the push will be aborted unle
       bucketRegion: sokoConfig.storageConfiguration.awsRegion,
       accessKeyId: sokoConfig.storageConfiguration.awsAccessKeyId,
       secretAccessKey: sokoConfig.storageConfiguration.awsSecretAccessKey,
+      role: sokoConfig.storageConfiguration.awsRole,
+      debug: optsParsingResult.data.debug,
     });
 
     const localProvider = new LocalStorageProvider(
