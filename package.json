@@ -1,6 +1,21 @@
 {
   "name": "soko-monorepo",
+  "description": "Monorepo for Soko packages and applications, warehouse for smart contract compilation artifacts.",
+  "author": "Loïc Vincent-Genod",
+  "homepage": "https://github.com/VGLoic/soko-monorepo",
+  "bugs": {
+    "url": "https://github.com/VGLoic/soko-monorepo/issues"
+  },
   "private": true,
+  "keywords": [
+    "web3",
+    "ethereum",
+    "smart contracts",
+    "hardhat",
+    "foundry",
+    "plugin",
+    "infrastructure"
+  ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

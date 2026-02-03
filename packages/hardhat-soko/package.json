@@ -1,7 +1,7 @@
 {
   "name": "@soko/hardhat-soko",
   "version": "0.1.0",
-  "description": "Hardhat plugin for managing compilation artifacts",
+  "description": "Hardhat plugin in order to interact with Soko, warehouse for smart contract compilation artifacts.",
   "author": "Loïc Vincent-Genod",
   "homepage": "https://github.com/VGLoic/soko-monorepo",
   "bugs": {
@@ -12,6 +12,7 @@
     "ethereum",
     "smart contracts",
     "hardhat",
+    "foundry",
     "plugin",
     "infrastructure"
   ],
