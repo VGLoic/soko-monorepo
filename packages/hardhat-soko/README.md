@@ -40,6 +40,8 @@ export const config: HardhatUserConfig = {
 }
 ```
 
+It is recommended to add the folders for pulled artifacts and typings to the `.gitignore` file. They can be regenerated at any time.
+
 ## Projects, tags and IDs
 
 A unique **ID**, e.g. `b5e41181986a`, is derived for each compilation artifact. The ID is based on the content of the artifact.
