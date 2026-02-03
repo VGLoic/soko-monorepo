@@ -204,6 +204,25 @@ const deployMyExample: DeployFunction = async function (
 export default deployMyExample;
 ```
 
+## Storage configurations
+
+Currently only AWS S3 storage configuration is supported.
+
+### AWS S3
+
+Compilation artifacts are stored in an [AWS S3 bucket](https://aws.amazon.com/s3/).
+
+Before using Soko with AWS S3, one need to create an S3 bucket and have AWS credentials with access to it. The configuration requires:
+
+- `awsRegion`: AWS region where the S3 bucket is located
+- `awsBucketName`: Name of the S3 bucket
+- `awsAccessKeyId`: AWS access key ID of the credentials
+- `awsSecretAccessKey`: AWS secret access key of the credentials.
+
+Make sure the credentials used have the right permissions to read and write objects in the S3 bucket.
+
+It is possible to use a single bucket for multiple projects, Soko will handle the organization of the artifacts within the bucket.
+
 ## Integration examples
 
 The monorepo contains example projects using different toolchains:
