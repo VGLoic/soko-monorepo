@@ -25,7 +25,7 @@ Soko supports both Hardhat and Foundry development environments, compile once, d
 
 ## Hardhat Soko
 
-Soko is for now available as a [Hardhat](https://hardhat.org/) plugin.
+Soko is for now available as a Hardhat plugin.
 
 It supports Hardhat V3, Hardhat V2 and Foundry as development environments.
 

@@ -1,46 +1,14 @@
 # Hardhat Soko
 
-Hardhat plugin in order to manage your smart contract compilation artifacts.
-
-1. [Motivation](#motivation),
-2. [Installation](#installation),
-3. [Configuration](#configuration),
-4. [Projects, tags and IDs](#projects-tags-and-ids),
-5. [Hardhat Tasks](#tasks),
-6. [Using the typings](#using-the-typings),
-7. [Integration examples](#integration-examples).
-
-## Motivation
-
-When compiling the smart contracts, the developer will generate _compilation artifacts_. They will contain all the needed informations for further tasks such as deployment, verification or contract interactions.
-
-These compilation artifacts are often ignored and not commited nor stored. At best, compilation artifact for a contract is contained within its deployment summary. Not having a clear way of identifying or re-using an artifact is a painful experience for all developers working closely or remotely with the smart contracts:
-
-- the smart contract developer, when developing new features, is afraid of erasing artifacts that are still needed,
-- the "smart contract devops" has to execute the deployment or interaction scripts with artifact that are meant to be thrown away, it complexifies drastically the sharing of ABIs and deployments to the rest of the team,
-- the developer using the deployed smart contracts often ends up copy pasting deployed addresses and ABIs without having a clear vision on it.
-
-**The goal of this plugin is to encourage the developer to organize the compilation artifacts by releases, hence freezing them once created. These artifacts would be stored on a dedicated storage in order to enable an easy conservation and retrieval.**
-
-Once the artifacts are kept safe on the storage, developers can easily leverage them in order to execute the same tasks as before but in a safer and clearer way:
-
-- deployment scripts depend only on frozen artifacts,
-- the artifact associated to a deployed contract can be easily found, hence allowing verification or interaction,
-- pipelines can be built using the stored artifacts in order to expose safely to other developers the ABIs and the deployed contracts.
+Hardhat plugin in order to interact with Soko, warehouse for smart contract compilation artifacts.
 
 ## Installation
 
 Installation can be made using any package manager
 
 ```bash
-npm install hardhat-soko
-```
-
-```bash
-pnpm install hardhat-soko
-```
-
-```bash
+pnpm install @soko/hardhat-soko
+npm install @soko/hardhat-soko
 yarn add hardhat-soko
 ```
 
@@ -58,56 +26,33 @@ export const config: HardhatUserConfig = {
   ... // Existing configuration
   // Example configuration for Soko with AWS S3 as storage for compilation artifacts
   soko: {
-    project: "awesome-stuff",
-    pulledArtifactsPath: ".soko",
-    typingsPath: ".soko-typings",
-    storageConfiguration: {
+    project: "doubtful-project", // Name of the project, used when pushing artifacts and as default for other commands
+    pulledArtifactsPath: ".soko", // Local path for pulled artifacts, default to `.soko`
+    typingsPath: ".soko-typings", // Local path for generated typings, default to `.soko-typings`
+    storageConfiguration: { // Configuration of the storage, only AWS S3 is supported for now
       type: "aws",
-      awsRegion: AWS_REGION,
-      awsBucketName: AWS_S3_BUCKET,
-      awsAccessKeyId: AWS_ACCESS_KEY_ID,
-      awsSecretAccessKey: AWS_SECRET_ACCESS_KEY,
+      awsRegion: MY_AWS_REGION,
+      awsBucketName: MY_AWS_S3_BUCKET,
+      awsAccessKeyId: MY_AWS_ACCESS_KEY_ID,
+      awsSecretAccessKey: MY_AWS_SECRET_ACCESS_KEY,
     },
+    debug: false, // If true, all tasks are running with debug mode enabled, default to `false`
   },
 }
 ```
 
-Here is the detailled TypeScript type of the configuration
-
-```ts
-type SokoHardhatUserConfig = {
-  // The name of the project
-  project: string;
-  // Local path in which artifacts will be pulled
-  // Default to `.soko`
-  pulledArtifactsPath?: string;
-  // Local path in which typings will be generated
-  // Default to `.soko-typings`
-  typingsPath?: string;
-  // Configuration of the storage where the artifacts will be stored
-  // Only AWS is supported for now
-  storageConfiguration: {
-    type: "aws";
-    awsRegion: string;
-    awsBucketName: string;
-    awsAccessKeyId: string;
-    awsSecretAccessKey: string;
-  };
-  // If enabled, all tasks are running with activated debug mode
-  // Default to `false`
-  debug?: boolean;
-};
-```
-
 ## Projects, tags and IDs
 
-**An ID, e.g. `123456789abcdef`, is derived for each compilation artifact**. The ID is based on the content of the artifact.
+A unique **ID**, e.g. `b5e41181986a`, is derived for each compilation artifact. The ID is based on the content of the artifact.
 
-**A tag, e.g. `v1.2.3`, can be associated to a compilation artifact when pushed.**
+A **tag**, e.g. `2026-02-02` or `v1.2.3`, can be associated to a compilation artifact when pushed.
 
-**A project, e.g. `my-project`, will gather many compilation artifacts.**
+A **project**, e.g. `doubtful-project`, will gather many compilation artifacts.
 
-A project is setup at the level of the Hardhat Config, it will be used when pushing new artifacts or as default for the other commands. It is however possible to pull any projects you control.
+The project setup in the Hardhat Config will be used as
+
+- target project when pushing new compilation artifacts,
+- default project for pulling artifacts or other commands, different project can be specified for those commands.
 
 ## Tasks
 
@@ -133,14 +78,17 @@ Push a local compilation artifact for the configured project to the storage, cre
 Only push the compilation artifact without an additional tag:
 
 ```bash
-npx hardhat soko push --artifact-path ./path/to/my/artifact.json
+npx hardhat soko push --artifact-path ./artifacts
 ```
 
 Or use a tag to associate the compilation artifact with it
 
 ```bash
-npx hardhat soko push --artifact-path ./path/to/my/artifact.json --tag v1.2.3
+npx hardhat soko push --artifact-path ./artifacts --tag 2026-02-02
 ```
+
+> [!NOTE]
+> Hardhat Soko will try to read the compilation artifact from the provided path. If multiple choices are possible, it will ask the user to select one of them. One can avoid this prompt by providing the full path to the compilation artifact or ensure there is only one compilation artifact in the provided path.
 
 ### Pull
 
@@ -155,9 +103,9 @@ npx hardhat soko pull
 Or target a specific artifact using its tag or ID or another project:
 
 ```bash
-npx hardhat soko pull --id 123456
-npx hardhat soko pull --tag v1.2.3
-npx hardhat soko pull --tag v4.5.6 --project another-project
+npx hardhat soko pull --id b5e41181986a
+npx hardhat soko pull --tag 2026-02-02
+npx hardhat soko pull --tag v1.2.3 --project another-project
 ```
 
 ### Typings
@@ -184,8 +132,8 @@ npx hardhat soko list
 Compare a local compilation artifacts with an existing compilation artifact and print the contracts for which differences have been found.
 
 ```bash
-npx hardhat soko diff --artifact-path ./path/to/my/artifact.json --tag v1.2.3
-npx hardhat soko diff --artifact-path ./path/to/my/artifact.json --id 123456
+npx hardhat soko diff --artifact-path ./artifacts --tag 2026-02-02
+npx hardhat soko diff --artifact-path ./artifacts --id b5e41181986a
 ```
 
 ## Using the typings
@@ -194,14 +142,14 @@ The typings are exposed in order to help the developer retrieve easily and safel
 
 There are two available utils in order to retrieve a contract artifact, it would depend on the task at hand:
 
-- start with a contract, select one of its available tag
+- start with a contract, select one of its available tags
 
 ```ts
 import { project } from "../.soko-typings";
 
-const artifact = await project("my-project")
-  .contract("src/path/to/my/contract.sol:MyExampleContract")
-  .getArtifact("v1.2.3");
+const artifact = await project("doubtful-project")
+  .contract("src/path/to/my/contract.sol:Foo")
+  .getArtifact("2026-02-02");
 ```
 
 - start with a tag, select a contract within it
@@ -209,9 +157,9 @@ const artifact = await project("my-project")
 ```ts
 import { project } from "../.soko-typings";
 
-const artifact = await project("my-project")
-  .tag("v1.2.3")
-  .getContractArtifact("src/path/to/my/contract.sol:MyExampleContract");
+const artifact = await project("doubtful-project")
+  .tag("2026-02-02")
+  .getContractArtifact("src/path/to/my/contract.sol:Foo");
 ```
 
 If typings have been generated from existing projects, the inputs of the utils will be strongly typed and wrong project, tags or contracts names will be detected.
@@ -220,9 +168,9 @@ In case there are no projects or the projects have not been pulled, the generate
 
 ### Retrieve full compilation artifact
 
-The full compilation artifact of a tag can be retrieved using the `project("my-project").tag("v1.2.3").getCompilationArtifact` method.
+The full compilation artifact of a tag can be retrieved using the `project("doubtful-project").tag("2026-02-02").getCompilationArtifact` method.
 
-### Example with hardhat-deploy
+### Example with hardhat-deploy v0
 
 An example can be made with the [hardhat-deploy](https://github.com/wighawag/hardhat-deploy) plugin for deploying a released smart contract.
 
@@ -238,15 +186,15 @@ const deployMyExample: DeployFunction = async function (
 ) {
   const { deployer } = await hre.getNamedAccounts();
 
-  const myExampleArtifact = await project("my-project")
-    .contract("src/Example.sol:MyExample")
-    .getArtifact("v1.2.3");
+  const fooArtifact = await project("doubtful-project")
+    .contract("src/Example.sol:Foo")
+    .getArtifact("2026-02-02");
 
-  await hre.deployments.deploy(`MyExample@v1.2.3`, {
+  await hre.deployments.deploy(`Foo@2026-02-02`, {
     contract: {
-      abi: myExampleArtifact.abi,
-      bytecode: myExampleArtifact.evm.bytecode.object,
-      metadata: myExampleArtifact.metadata,
+      abi: fooArtifact.abi,
+      bytecode: fooArtifact.evm.bytecode.object,
+      metadata: fooArtifact.metadata,
     },
     from: deployer,
   });
@@ -257,7 +205,6 @@ export default deployMyExample;
 
 ## Integration examples
 
-Here are examples of integration with Hardhat Soko in order to handle the releases of smart contracts, deployments and publication of NPM packages containing ABI and deployment addresses:
+The monorepo contains example projects using different toolchains:
 
-- [everything with Hardhat](https://github.com/VGLoic/hardhat-soko-example),
-- [compilation and testing with Foundry, deployments with Hardhat](https://github.com/VGLoic/foundry-hardhat-soko-example).
+- [hardhat-v2-external-lib](../apps/hardhat-v2-external-lib/README.md): compile a contract and its external library with Hardhat V2, deploy using Hardhat Deploy V0.
