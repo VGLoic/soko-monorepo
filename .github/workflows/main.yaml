@@ -1,0 +1,56 @@
+name: Main Workflow
+on:
+    push:
+        branches:
+            - main
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '18'
+                  cache: 'pnpm'
+            - run: pnpm install
+            - run: pnpm build
+    check-format:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '18'
+                  cache: 'pnpm'
+            - run: pnpm install
+            - run: pnpm check-format
+    check-types:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '18'
+                  cache: 'pnpm'
+            - run: pnpm install
+            - run: pnpm check-types
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '18'
+                  cache: 'pnpm'
+            - run: pnpm install
+            - run: pnpm lint
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '18'
+                  cache: 'pnpm'
+            - run: pnpm install
+            - run: pnpm test
