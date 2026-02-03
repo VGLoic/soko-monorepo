@@ -9,18 +9,17 @@ Installation can be made using any package manager
 ```bash
 pnpm install @soko/hardhat-soko
 npm install @soko/hardhat-soko
-yarn add hardhat-soko
+yarn add @soko/hardhat-soko
 ```
 
 ## Configuration
 
-In the `hardhat.config.ts/js` file, one should import the `hardhat-soko` plugin and fill the Soko configuration.
+In the `hardhat.config.ts/js` file, one should import the `@soko/hardhat-soko` plugin and fill the Soko configuration.
 
 ```ts
 import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
 ...
-import "hardhat-soko";
+import "@soko/hardhat-soko";
 
 export const config: HardhatUserConfig = {
   ... // Existing configuration
