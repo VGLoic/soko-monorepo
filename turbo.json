@@ -18,13 +18,13 @@
       ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["build", "^lint"]
     },
     "format": {
       "dependsOn": ["^format"]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["build", "^check-types"]
     },
     "check-format": {
       "dependsOn": ["^check-format"]
@@ -34,7 +34,7 @@
       "persistent": true
     },
     "test": {
-      "dependsOn": ["^test"]
+      "dependsOn": ["build", "^test"]
     }
   }
 }

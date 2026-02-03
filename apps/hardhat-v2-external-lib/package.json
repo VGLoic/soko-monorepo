@@ -2,15 +2,16 @@
   "name": "hardhat-v2-external-lib",
   "version": "1.0.0",
   "scripts": {
+    "soko-typings": "hardhat soko typings",
     "test": "hardhat test",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "pnpm run soko-typings && eslint . --max-warnings 0",
     "check-format": "prettier --check --ignore-unknown --plugin=prettier-plugin-solidity 'src/**/*.sol'",
     "format-contracts": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol'",
     "format": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol'",
     "compile": "pnpm run format-contracts && hardhat compile --force --no-typechain",
     "deploy-contracts": "hardhat deploy --no-compile",
     "hardhat": "hardhat",
-    "check-types": "tsc --noEmit"
+    "check-types": "pnpm run soko-typings && tsc --noEmit"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^0.15.16",

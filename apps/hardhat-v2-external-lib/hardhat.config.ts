@@ -5,26 +5,18 @@ import "@soko/hardhat-soko";
 import "dotenv/config";
 import { SokoHardhatUserConfig } from "@soko/hardhat-soko";
 
-let sokoConfig: SokoHardhatUserConfig | undefined = undefined;
-if (
-  process.env.AWS_REGION &&
-  process.env.AWS_S3_BUCKET &&
-  process.env.AWS_ACCESS_KEY_ID &&
-  process.env.AWS_SECRET_ACCESS_KEY
-) {
-  sokoConfig = {
-    project: "doubtful-counter",
-    pulledArtifactsPath: ".soko",
-    typingsPath: ".soko-typings",
-    storageConfiguration: {
-      type: "aws",
-      awsRegion: process.env.AWS_REGION,
-      awsBucketName: process.env.AWS_S3_BUCKET,
-      awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  };
-}
+const sokoConfig: SokoHardhatUserConfig = {
+  project: "doubtful-counter",
+  pulledArtifactsPath: ".soko",
+  typingsPath: ".soko-typings",
+  storageConfiguration: {
+    type: "aws",
+    awsRegion: process.env.AWS_REGION || "",
+    awsBucketName: process.env.AWS_S3_BUCKET || "",
+    awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+    awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+  },
+};
 
 // Issue with hardhat config typing and module augmentation
 // It works fine when importing the build package directly but does not work in the monorepo setup
