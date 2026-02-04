@@ -1,7 +1,8 @@
 import { toAsyncResult } from "../utils";
-import { LOG_COLORS, ScriptError } from "../utils";
+import { ScriptError } from "../utils";
 import { StorageProvider } from "../s3-bucket-provider";
 import { LocalStorage } from "../local-storage";
+import { StepTracker } from "../cli-ui";
 
 /**
  * Pulls artifacts of a project from the storage provider
@@ -21,6 +22,10 @@ export async function pull(
   localStorage: LocalStorage,
   storageProvider: StorageProvider,
 ) {
+  const steps = new StepTracker(3);
+
+  // Step 1: Fetch remote artifacts
+  steps.start("Fetching remote artifact list...");
   const remoteListingResult = await toAsyncResult(
     Promise.all([
       storageProvider.listTags(project),
@@ -29,9 +34,11 @@ export async function pull(
     { debug: opts.debug },
   );
   if (!remoteListingResult.success) {
+    steps.fail("Failed to fetch remote artifacts");
     throw new ScriptError("Error listing the remote tags and IDs");
   }
   const [remoteTags, remoteIds] = remoteListingResult.value;
+  steps.succeed("Fetched remote artifact list");
 
   const tagsToDownload: string[] = [];
   const idsToDownload: string[] = [];
@@ -51,11 +58,14 @@ export async function pull(
     idsToDownload.push(...remoteIds);
   }
 
+  // Step 2: Check local artifacts
+  steps.start("Checking local artifacts...");
   let filteredTagsToDownload: string[] = [];
   let filteredIdsToDownload: string[] = [];
   if (opts.force) {
     filteredTagsToDownload = tagsToDownload;
     filteredIdsToDownload = idsToDownload;
+    steps.succeed("Skipped (force mode)");
   } else {
     const localListingResult = await toAsyncResult(
       Promise.all([
@@ -77,6 +87,7 @@ export async function pull(
       { debug: opts.debug },
     );
     if (!localListingResult.success) {
+      steps.fail("Failed to check local artifacts");
       throw new ScriptError("Error listing the local tags and IDs");
     }
 
@@ -86,12 +97,16 @@ export async function pull(
       (tag) => !localTags.has(tag),
     );
     filteredIdsToDownload = idsToDownload.filter((id) => !localIds.has(id));
+    steps.succeed("Checked local artifacts");
   }
 
+  // Step 3: Download artifacts
   if (
     filteredTagsToDownload.length === 0 &&
     filteredIdsToDownload.length === 0
   ) {
+    steps.start("Checking for updates...");
+    steps.succeed("All artifacts are up to date");
     return {
       remoteTags,
       remoteIds,
@@ -104,9 +119,8 @@ export async function pull(
 
   const missingArtifactCount =
     filteredTagsToDownload.length + filteredIdsToDownload.length;
-  console.error(
-    LOG_COLORS.log,
-    `\nFound ${missingArtifactCount} missing artifacts, starting to pull`,
+  steps.start(
+    `Downloading ${missingArtifactCount} missing artifact${missingArtifactCount > 1 ? "s" : ""}...`,
   );
 
   const tagsPromises: Promise<{ tag: string }>[] = filteredTagsToDownload.map(
@@ -126,11 +140,6 @@ export async function pull(
       if (!createResult.success) {
         throw new ScriptError(`Error creating the tag "${tag}"`);
       }
-
-      console.error(
-        LOG_COLORS.success,
-        `\nSuccessfully pulled artifact "${tag}"`,
-      );
 
       return { tag };
     },
@@ -152,11 +161,6 @@ export async function pull(
       if (!createResult.success) {
         throw new ScriptError(`Error creating the ID "${id}"`);
       }
-
-      console.error(
-        LOG_COLORS.success,
-        `\nSuccessfully pulled artifact "${id}"`,
-      );
 
       return { id };
     },
@@ -181,6 +185,19 @@ export async function pull(
     }
   }
   const failedIds = filteredIdsToDownload.filter((id) => !pulledIds.has(id));
+
+  const totalPulled = pulledTags.size + pulledIds.size;
+  const totalFailed = failedTags.length + failedIds.length;
+
+  if (totalFailed > 0) {
+    steps.fail(
+      `Downloaded ${totalPulled} artifact${totalPulled > 1 ? "s" : ""}, ${totalFailed} failed`,
+    );
+  } else {
+    steps.succeed(
+      `Downloaded ${totalPulled} artifact${totalPulled > 1 ? "s" : ""} successfully`,
+    );
+  }
 
   return {
     remoteTags,

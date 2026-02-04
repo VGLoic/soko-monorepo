@@ -2,7 +2,8 @@ import "hardhat/types/config";
 import { extendConfig, scope } from "hardhat/config";
 import { HardhatConfig, HardhatUserConfig } from "hardhat/types/config";
 import { z } from "zod";
-import { LOG_COLORS, ScriptError, toAsyncResult } from "./utils";
+import { styleText } from "node:util";
+import { ScriptError, toAsyncResult } from "./utils";
 import { S3BucketProvider } from "./s3-bucket-provider";
 import { pull } from "./scripts/pull";
 import { generateArtifactsSummariesAndTypings } from "./scripts/generate-typings";
@@ -10,6 +11,16 @@ import { pushArtifact } from "./scripts/push";
 import { LocalStorage } from "./local-storage";
 import { generateStructuredDataForArtifacts } from "./scripts/list";
 import { generateDiffWithTargetRelease } from "./scripts/diff";
+import {
+  boxHeader,
+  boxSummary,
+  createSpinner,
+  error as cliError,
+  success as cliSuccess,
+  warn as cliWarn,
+  colorTableHeaders,
+  info as cliInfo,
+} from "./cli-ui";
 
 /**
  * The Soko Hardhat user configuration
@@ -100,12 +111,14 @@ extendConfig(
 
     if (!sokoParsingResult.success) {
       console.error(
-        LOG_COLORS.warn,
-        `Configuration for Soko has been found but seems invalid. Please consult the below errors: \n${sokoParsingResult.error.errors.map(
-          (error) => {
-            return `  - ${error.path.join(".")}: ${error.message} (${error.code})`;
-          },
-        )}`,
+        styleText(
+          "yellow",
+          `Configuration for Soko has been found but seems invalid. Please consult the below errors: \n${sokoParsingResult.error.errors.map(
+            (error) => {
+              return `  - ${error.path.join(".")}: ${error.message} (${error.code})`;
+            },
+          )}`,
+        ),
       );
       return;
     }
@@ -160,7 +173,7 @@ Already downloaded artifacts are not downloaded again by default, enable the for
   .setAction(async (opts, hre) => {
     const sokoConfig = hre.config.soko;
     if (!sokoConfig) {
-      console.error(LOG_COLORS.error, "❌ Soko is not configured.");
+      cliError("Soko is not configured");
       process.exitCode = 1;
       return;
     }
@@ -175,7 +188,7 @@ Already downloaded artifacts are not downloaded again by default, enable the for
       })
       .safeParse(opts);
     if (!optsParsingResult.success) {
-      console.error(LOG_COLORS.error, "❌ Invalid arguments");
+      cliError("Invalid arguments");
       if (sokoConfig.debug || opts.debug) {
         console.error(optsParsingResult.error);
       }
@@ -184,24 +197,17 @@ Already downloaded artifacts are not downloaded again by default, enable the for
     }
 
     if (optsParsingResult.data.id && optsParsingResult.data.tag) {
-      console.error(
-        LOG_COLORS.error,
-        "❌ The ID and tag parameters can not be used together",
-      );
+      cliError("The ID and tag parameters can not be used together");
       process.exitCode = 1;
       return;
     }
 
     if (optsParsingResult.data.id || optsParsingResult.data.tag) {
-      console.error(
-        LOG_COLORS.log,
-        `\nPulling the artifact "${optsParsingResult.data.project}:${optsParsingResult.data.id || optsParsingResult.data.tag}"`,
+      boxHeader(
+        `Pulling artifact "${optsParsingResult.data.project}:${optsParsingResult.data.id || optsParsingResult.data.tag}"`,
       );
     } else {
-      console.error(
-        LOG_COLORS.log,
-        `\nPulling the missing artifacts of project "${optsParsingResult.data.project}"`,
-      );
+      boxHeader(`Pulling artifacts for "${optsParsingResult.data.project}"`);
     }
 
     const storageProvider = new S3BucketProvider({
@@ -215,24 +221,24 @@ Already downloaded artifacts are not downloaded again by default, enable the for
 
     const localStorage = new LocalStorage(sokoConfig.pulledArtifactsPath);
 
+    const setupSpinner = createSpinner("Setting up local storage...");
     const ensureResult = await toAsyncResult(
       localStorage.ensureProjectSetup(optsParsingResult.data.project),
       { debug: optsParsingResult.data.debug },
     );
     if (!ensureResult.success) {
+      setupSpinner.fail("Failed to setup local storage");
       if (ensureResult.error instanceof ScriptError) {
-        console.error(LOG_COLORS.error, "❌ ", ensureResult.error.message);
+        cliError(ensureResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.error(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        ensureResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(ensureResult.error);
       process.exitCode = 1;
       return;
     }
+    setupSpinner.succeed("Local storage ready");
 
     const pullResult = await toAsyncResult(
       pull(
@@ -249,15 +255,12 @@ Already downloaded artifacts are not downloaded again by default, enable the for
     );
     if (!pullResult.success) {
       if (pullResult.error instanceof ScriptError) {
-        console.error(LOG_COLORS.error, "❌ ", pullResult.error.message);
+        cliError(pullResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.error(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        pullResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(pullResult.error);
       process.exitCode = 1;
       return;
     }
@@ -266,56 +269,51 @@ Already downloaded artifacts are not downloaded again by default, enable the for
       pullResult.value.remoteTags.length === 0 &&
       pullResult.value.remoteIds.length === 0
     ) {
-      console.error(LOG_COLORS.success, "\nNo artifacts to pull yet");
+      cliSuccess("No artifacts to pull yet");
     } else if (
       pullResult.value.failedTags.length === 0 &&
       pullResult.value.failedIds.length === 0 &&
       pullResult.value.pulledTags.length === 0 &&
       pullResult.value.pulledIds.length === 0
     ) {
-      console.error(
-        LOG_COLORS.success,
-        `\nYou're up to date with project "${optsParsingResult.data.project}"`,
+      cliSuccess(
+        `You're up to date with project "${optsParsingResult.data.project}"`,
       );
     } else {
+      const summaryLines: string[] = [];
+
       if (pullResult.value.pulledTags.length > 0) {
-        console.error(
-          LOG_COLORS.success,
-          `\nPulled ${pullResult.value.pulledTags.length} tags from storage:`,
-        );
+        summaryLines.push(styleText(["bold", "green"], "✔ Pulled Tags:"));
         pullResult.value.pulledTags.forEach((tag) => {
-          console.error(LOG_COLORS.success, ` - ${tag}`);
+          summaryLines.push(styleText("green", `  • ${tag}`));
         });
       }
       if (pullResult.value.pulledIds.length > 0) {
-        console.error(
-          LOG_COLORS.success,
-          `\nPulled ${pullResult.value.pulledIds.length} IDs from storage:`,
-        );
+        if (summaryLines.length > 0) summaryLines.push("");
+        summaryLines.push(styleText(["bold", "green"], "✔ Pulled IDs:"));
         pullResult.value.pulledIds.forEach((id) => {
-          console.error(LOG_COLORS.success, ` - ${id}`);
+          summaryLines.push(styleText("green", `  • ${id}`));
         });
       }
       if (pullResult.value.failedTags.length > 0) {
-        console.error(
-          LOG_COLORS.error,
-          `\n❌ Failed to pull ${pullResult.value.failedTags.length} tags:`,
-        );
+        if (summaryLines.length > 0) summaryLines.push("");
+        summaryLines.push(styleText(["bold", "red"], "✖ Failed Tags:"));
         pullResult.value.failedTags.forEach((tag) => {
-          console.error(LOG_COLORS.error, ` - ${tag}`);
+          summaryLines.push(styleText("red", `  • ${tag}`));
         });
       }
       if (pullResult.value.failedIds.length > 0) {
-        console.error(
-          LOG_COLORS.error,
-          `\n❌ Failed to pull ${pullResult.value.failedIds.length} IDs:`,
-        );
+        if (summaryLines.length > 0) summaryLines.push("");
+        summaryLines.push(styleText(["bold", "red"], "✖ Failed IDs:"));
         pullResult.value.failedIds.forEach((id) => {
-          console.error(LOG_COLORS.error, ` - ${id}`);
+          summaryLines.push(styleText("red", `  • ${id}`));
         });
       }
+
+      if (summaryLines.length > 0) {
+        boxSummary("Summary", summaryLines);
+      }
     }
-    console.error("\n");
   });
 
 sokoScope
@@ -344,7 +342,7 @@ If the provided tag already exists in the storage, the push will be aborted unle
   .setAction(async (opts, hre) => {
     const sokoConfig = hre.config.soko;
     if (!sokoConfig) {
-      console.error("❌ Soko is not configured.");
+      cliError("Soko is not configured");
       process.exitCode = 1;
       return;
     }
@@ -359,13 +357,17 @@ If the provided tag already exists in the storage, the push will be aborted unle
       .safeParse(opts);
 
     if (!optsParsingResult.success) {
-      console.error(LOG_COLORS.error, "❌ Invalid arguments");
+      cliError("Invalid arguments");
       if (sokoConfig.debug || opts.debug) {
         console.error(optsParsingResult.error);
       }
       process.exitCode = 1;
       return;
     }
+
+    boxHeader(
+      `Pushing artifact to "${sokoConfig.project}"${optsParsingResult.data.tag ? ` with tag "${optsParsingResult.data.tag}"` : ""}`,
+    );
 
     const storageProvider = new S3BucketProvider({
       bucketName: sokoConfig.storageConfiguration.awsBucketName,
@@ -384,15 +386,12 @@ If the provided tag already exists in the storage, the push will be aborted unle
     );
     if (!ensureResult.success) {
       if (ensureResult.error instanceof ScriptError) {
-        console.error(LOG_COLORS.error, "❌ ", ensureResult.error.message);
+        cliError(ensureResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.error(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        ensureResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(ensureResult.error);
       process.exitCode = 1;
       return;
     }
@@ -412,22 +411,22 @@ If the provided tag already exists in the storage, the push will be aborted unle
     );
     if (!pushResult.success) {
       if (pushResult.error instanceof ScriptError) {
-        console.log(LOG_COLORS.error, "❌ ", pushResult.error.message);
+        cliError(pushResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.log(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        pushResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(pushResult.error);
       process.exitCode = 1;
       return;
     }
-    console.log(
-      LOG_COLORS.success,
-      `\nArtifact "${sokoConfig.project}:${optsParsingResult.data.tag || pushResult.value}" pushed successfully`,
+
+    console.error("");
+    cliSuccess(
+      `Artifact "${sokoConfig.project}:${optsParsingResult.data.tag || pushResult.value}" pushed successfully`,
     );
+    console.error(styleText("cyan", `  ID: ${pushResult.value}`));
+    console.error("");
   });
 
 sokoScope
@@ -443,7 +442,7 @@ The typings will be generated in the configured typings path.
   .setAction(async (opts, hre) => {
     const sokoConfig = hre.config.soko;
     if (!sokoConfig) {
-      console.error("❌ Soko is not configured.");
+      cliError("Soko is not configured");
       process.exitCode = 1;
       return;
     }
@@ -455,7 +454,7 @@ The typings will be generated in the configured typings path.
       .safeParse(opts);
 
     if (!parsingResult.success) {
-      console.error(LOG_COLORS.error, "❌ Invalid arguments");
+      cliError("Invalid arguments");
       if (sokoConfig.debug || opts.debug) {
         console.error(parsingResult.error);
       }
@@ -463,27 +462,29 @@ The typings will be generated in the configured typings path.
       return;
     }
 
-    console.log(LOG_COLORS.log, "\nStarting typings generation\n");
+    boxHeader("Generating typings");
 
     const localStorage = new LocalStorage(sokoConfig.pulledArtifactsPath);
+
+    const setupSpinner = createSpinner("Setting up local storage...");
     const ensureResult = await toAsyncResult(localStorage.ensureSetup(), {
       debug: parsingResult.data.debug,
     });
     if (!ensureResult.success) {
+      setupSpinner.fail("Failed to setup local storage");
       if (ensureResult.error instanceof ScriptError) {
-        console.log(LOG_COLORS.error, "❌ ", ensureResult.error.message);
+        cliError(ensureResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.log(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        ensureResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(ensureResult.error);
       process.exitCode = 1;
       return;
     }
+    setupSpinner.succeed("Local storage ready");
 
+    const generateSpinner = createSpinner("Generating typings...");
     await generateArtifactsSummariesAndTypings(
       sokoConfig.typingsPath,
       false,
@@ -493,15 +494,18 @@ The typings will be generated in the configured typings path.
       localStorage,
     )
       .then(() => {
-        console.log(LOG_COLORS.success, "\nTypings generated successfully\n");
+        generateSpinner.succeed("Typings generated successfully");
+        console.error("");
       })
       .catch((err) => {
+        generateSpinner.fail("Failed to generate typings");
         if (err instanceof ScriptError) {
-          console.log(LOG_COLORS.error, "❌ ", err.message);
+          cliError(err.message);
           process.exitCode = 1;
           return;
         }
-        console.log(LOG_COLORS.error, "❌ An unexpected error occurred: ", err);
+        cliError("An unexpected error occurred");
+        console.error(err);
         process.exitCode = 1;
       });
   });
@@ -515,7 +519,7 @@ sokoScope
   .setAction(async (opts, hre) => {
     const sokoConfig = hre.config.soko;
     if (!sokoConfig) {
-      console.error("❌ Soko is not configured.");
+      cliError("Soko is not configured");
       process.exitCode = 1;
       return;
     }
@@ -527,13 +531,15 @@ sokoScope
       .safeParse(opts);
 
     if (!parsingResult.success) {
-      console.error(LOG_COLORS.error, "❌ Invalid arguments");
+      cliError("Invalid arguments");
       if (sokoConfig.debug || opts.debug) {
         console.error(parsingResult.error);
       }
       process.exitCode = 1;
       return;
     }
+
+    boxHeader("Listing artifacts");
 
     const localStorage = new LocalStorage(sokoConfig.pulledArtifactsPath);
 
@@ -542,15 +548,12 @@ sokoScope
     });
     if (!setupResult.success) {
       if (setupResult.error instanceof ScriptError) {
-        console.log(LOG_COLORS.error, "❌ ", setupResult.error.message);
+        cliError(setupResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.log(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        setupResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(setupResult.error);
       process.exitCode = 1;
       return;
     }
@@ -563,29 +566,22 @@ sokoScope
     );
     if (!structuredDataResult.success) {
       if (structuredDataResult.error instanceof ScriptError) {
-        console.log(
-          LOG_COLORS.error,
-          "❌ ",
-          structuredDataResult.error.message,
-        );
+        cliError(structuredDataResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.log(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        structuredDataResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(structuredDataResult.error);
       process.exitCode = 1;
       return;
     }
 
     if (structuredDataResult.value.length === 0) {
-      console.error(LOG_COLORS.warn, "\nNo artifacts found");
+      cliWarn("No artifacts found");
       return;
     }
 
-    console.table(structuredDataResult.value, [
+    colorTableHeaders(structuredDataResult.value, [
       "Project",
       "Tag",
       "ID",
@@ -611,7 +607,7 @@ sokoScope
   .setAction(async (opts, hre) => {
     const sokoConfig = hre.config.soko;
     if (!sokoConfig) {
-      console.error("❌ Soko is not configured.");
+      cliError("Soko is not configured");
       process.exitCode = 1;
       return;
     }
@@ -625,7 +621,7 @@ sokoScope
       })
       .safeParse(opts);
     if (!paramParsingResult.success) {
-      console.error(LOG_COLORS.error, "❌ Invalid arguments");
+      cliError("Invalid arguments");
       if (sokoConfig.debug || opts.debug) {
         console.error(paramParsingResult.error);
       }
@@ -633,59 +629,48 @@ sokoScope
       return;
     }
     if (paramParsingResult.data.id && paramParsingResult.data.tag) {
-      console.error(
-        LOG_COLORS.error,
-        "❌ The ID and tag parameters can not be used together",
-      );
+      cliError("The ID and tag parameters can not be used together");
       process.exitCode = 1;
       return;
     }
 
     if (!paramParsingResult.data.id && !paramParsingResult.data.tag) {
-      console.error(
-        LOG_COLORS.error,
-        "❌ The artifact must be identified by a tag or an ID",
-      );
+      cliError("The artifact must be identified by a tag or an ID");
       process.exitCode = 1;
       return;
     }
 
     const tagOrId = paramParsingResult.data.id || paramParsingResult.data.tag;
     if (!tagOrId) {
-      console.error(
-        LOG_COLORS.error,
-        "❌ The artifact must be identified by a tag or an ID",
-      );
+      cliError("The artifact must be identified by a tag or an ID");
       process.exitCode = 1;
       return;
     }
 
-    console.log(
-      LOG_COLORS.log,
-      `\nComparing the current compilation with the "${sokoConfig.project}:${tagOrId}" artifact`,
-    );
+    boxHeader(`Comparing with artifact "${sokoConfig.project}:${tagOrId}"`);
 
     const localStorage = new LocalStorage(sokoConfig.pulledArtifactsPath);
 
+    const ensureSpinner = createSpinner("Setting up local storage...");
     const ensureResult = await toAsyncResult(
       localStorage.ensureProjectSetup(sokoConfig.project),
       { debug: paramParsingResult.data.debug },
     );
     if (!ensureResult.success) {
+      ensureSpinner.fail("Failed to setup local storage");
       if (ensureResult.error instanceof ScriptError) {
-        console.log(LOG_COLORS.error, "❌ ", ensureResult.error.message);
+        cliError(ensureResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.log(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        ensureResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(ensureResult.error);
       process.exitCode = 1;
       return;
     }
+    ensureSpinner.succeed("Local storage ready");
 
+    const compareSpinner = createSpinner("Comparing artifacts...");
     const differencesResult = await toAsyncResult(
       generateDiffWithTargetRelease(
         paramParsingResult.data.artifactPath,
@@ -697,39 +682,70 @@ sokoScope
       ),
     );
     if (!differencesResult.success) {
+      compareSpinner.fail("Failed to compare artifacts");
       if (differencesResult.error instanceof ScriptError) {
-        console.log(LOG_COLORS.error, "❌ ", differencesResult.error.message);
+        cliError(differencesResult.error.message);
         process.exitCode = 1;
         return;
       }
-      console.log(
-        LOG_COLORS.error,
-        "❌ An unexpected error occurred: ",
-        differencesResult.error,
-      );
+      cliError("An unexpected error occurred");
+      console.error(differencesResult.error);
       process.exitCode = 1;
       return;
     }
+    compareSpinner.succeed("Comparison complete");
 
     if (differencesResult.value.length === 0) {
-      console.log(LOG_COLORS.success, "\nNo differences found");
+      console.error("");
+      cliSuccess("No differences found");
+      console.error("");
       return;
     }
 
-    console.log(LOG_COLORS.success, "\nDifferences found:");
-    for (const difference of differencesResult.value) {
-      console.log(
-        LOG_COLORS.success,
-        ` - ${difference.name} (${difference.path}): ${difference.status}`,
-      );
+    const added = differencesResult.value.filter((d) => d.status === "added");
+    const removed = differencesResult.value.filter(
+      (d) => d.status === "removed",
+    );
+    const changed = differencesResult.value.filter(
+      (d) => d.status === "changed",
+    );
+
+    const summaryLines: string[] = [];
+
+    if (changed.length > 0) {
+      summaryLines.push(styleText(["bold", "yellow"], "Changed:"));
+      changed.forEach((diff) => {
+        summaryLines.push(
+          styleText("yellow", `  • ${diff.name} (${diff.path})`),
+        );
+      });
     }
+
+    if (added.length > 0) {
+      if (summaryLines.length > 0) summaryLines.push("");
+      summaryLines.push(styleText(["bold", "green"], "Added:"));
+      added.forEach((diff) => {
+        summaryLines.push(
+          styleText("green", `  • ${diff.name} (${diff.path})`),
+        );
+      });
+    }
+
+    if (removed.length > 0) {
+      if (summaryLines.length > 0) summaryLines.push("");
+      summaryLines.push(styleText(["bold", "red"], "Removed:"));
+      removed.forEach((diff) => {
+        summaryLines.push(styleText("red", `  • ${diff.name} (${diff.path})`));
+      });
+    }
+
+    boxSummary("Differences Found", summaryLines);
   });
 
 sokoScope
   .task("help", "Use `npx hardhat help soko` instead")
   .setAction(async () => {
-    console.log(
-      LOG_COLORS.log,
+    cliInfo(
       "This help format is not supported by Hardhat.\nPlease use `npx hardhat help soko` instead (change `npx` with what you use).\nHelp on a specific task can be obtained by using `npx hardhat help soko <command>`.",
     );
   });
