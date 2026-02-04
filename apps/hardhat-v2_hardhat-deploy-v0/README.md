@@ -1,6 +1,8 @@
 # Hardhat Soko - Example - Deploy Counter
 
-This is an example of integration between [Hardhat V2](https://v2.hardhat.org/) and [Soko](https://github.com/VGLoic/soko-monorepo), demonstrating how to deploy a smart contract.
+This is an example of integration between [Hardhat V2](https://v2.hardhat.org/) and [Soko](https://github.com/VGLoic/soko-monorepo).
+
+The static compilation artifacts from `Soko` are used to deploy a simple `Counter` contract, see [Counter.sol](./src/Counter.sol).
 
 The [Hardhat-Deploy](https://rocketh.dev/hardhat-deploy/) (`hardhat-deploy@0.12.4` i.e. `v0`) plugin is used to manage deployments.
 
