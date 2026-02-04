@@ -15,7 +15,7 @@
 ## What is Soko?
 
 Soko enables teams to **version**, **store** and **share** smart-contract compilation artifacts.  
-As such, it decouples the compilation process from the deployment process.  
+As such, it decouples the compilation process from the deployment process.
 
 Soko supports both Hardhat and Foundry development environments, compile once, deploy safely.
 
@@ -24,7 +24,6 @@ Soko supports both Hardhat and Foundry development environments, compile once, d
     <source srcset="images/soko-workflow-light.svg" media="(prefers-color-scheme: light)">
     <img alt="Soko workflow" src="images/soko-workflow-light.svg" />
 </picture>
-
 
 ## Hardhat Soko
 
@@ -40,6 +39,7 @@ for a complete guide of the plugin, its commands, configuration options and feat
 ### Configure
 
 Import and configure the plugin in the `hardhat.config.ts` file:
+
 ```ts
 // hardhat.config.ts
 import { HardhatUserConfig } from "hardhat/config";
@@ -65,6 +65,7 @@ export const config: HardhatUserConfig = {
 ### Development process
 
 Once compilation is done, push the artifacts to Soko under a specific tag
+
 ```bash
 npx hardhat soko push --artifact-path ./artifacts --tag 2026-02-02
 ```
@@ -72,16 +73,19 @@ npx hardhat soko push --artifact-path ./artifacts --tag 2026-02-02
 ### Deployment process
 
 Pull the project artifacts from Soko locally
+
 ```bash
 npx hardhat soko pull
 ```
 
 Generate TypeScript typings for the pulled artifacts
+
 ```bash
 npx hardhat soko typings
 ```
 
 Write scripts in a fully typed and transparent manner
+
 ```ts
 ...
 import { project } from "../.soko-typings";
@@ -89,7 +93,7 @@ import { project } from "../.soko-typings";
 async function deployFoo() {
     // Get project utilities for the target tag
     const projectUtils = project("doubtful-project").tag("2026-02-02");
-  
+
     // Get `Foo` static artifact for the target release
     const myContractArtifact = await projectUtils.getContractArtifact(
       "src/Foo.sol:Foo",
@@ -113,6 +117,7 @@ Please refer to the [Hardhat Soko documentation](packages/hardhat-soko/README.md
 for a complete guide of the plugin, its commands, configuration options and features.
 
 Examples of projects using Hardhat Soko can be found in the `apps/` folder:
+
 - [hardhat-v2-external-lib](apps/hardhat-v2-external-lib/README.md): compile a contract and its external library with Hardhat V2, deploy using Hardhat Deploy V0.
 
 ## FAQ
@@ -120,6 +125,7 @@ Examples of projects using Hardhat Soko can be found in the `apps/` folder:
 ### When to use Soko?
 
 Use Soko when you want to
+
 - **decouple compilation from deployment**: development and compilation is in a different phase than deployment and maintenance,
 - **safely and transparently deploy** smart-contracts using static compilation artifacts, no bad surprises,
 - **collaborate easily** across your team by sharing ABIs and compilation artifacts, no compile into copy-pasting wrong ABIs.
@@ -127,9 +133,9 @@ Use Soko when you want to
 ### When NOT to use Soko?
 
 Don't use Soko when
+
 - you are prototyping and iterating fast, Soko adds some friction that is not needed at this stage,
 - you don't care about transparency and reproducibility of your deployments or scripts.
-
 
 ## Contributing
 

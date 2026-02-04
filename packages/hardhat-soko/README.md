@@ -244,3 +244,7 @@ It is possible to use a single bucket for multiple projects, Soko will handle th
 The monorepo contains example projects using different toolchains:
 
 - [hardhat-v2-external-lib](../apps/hardhat-v2-external-lib/README.md): compile a contract and its external library with Hardhat V2, deploy using Hardhat Deploy V0.
+
+## Contributing
+
+See `CONTRIBUTING.md` for test and development guidelines.

@@ -31,6 +31,8 @@ type S3BucketProviderConfig = {
   bucketRegion: string;
   accessKeyId: string;
   secretAccessKey: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
   role?: {
     roleArn: string;
     externalId?: string;
@@ -65,6 +67,8 @@ export class S3BucketProvider implements StorageProvider {
     if (!this.config.role) {
       this.client = new S3Client({
         region: this.config.bucketRegion,
+        endpoint: this.config.endpoint,
+        forcePathStyle: this.config.forcePathStyle,
         credentials: {
           accessKeyId: this.config.accessKeyId,
           secretAccessKey: this.config.secretAccessKey,
@@ -76,6 +80,8 @@ export class S3BucketProvider implements StorageProvider {
     const roleCredentials = await this.getRoleCredentials();
     this.client = new S3Client({
       region: this.config.bucketRegion,
+      endpoint: this.config.endpoint,
+      forcePathStyle: this.config.forcePathStyle,
       credentials: {
         accessKeyId: roleCredentials.accessKeyId,
         secretAccessKey: roleCredentials.secretAccessKey,
@@ -93,6 +99,7 @@ export class S3BucketProvider implements StorageProvider {
 
     const stsClient = new STSClient({
       region: this.config.bucketRegion,
+      endpoint: this.config.endpoint,
       credentials: {
         accessKeyId: this.config.accessKeyId,
         secretAccessKey: this.config.secretAccessKey,
