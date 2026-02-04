@@ -20,23 +20,6 @@ Soko is a warehouse for smart-contract compilation artifacts. It enables teams t
 **Build Tool:** Turborepo
 **Node Version:** >=18 (use `nvm use` to ensure correct version)
 
-## Plan Mode
-
-When creating multi-step plans:
-
-- Keep plans extremely concise - sacrifice grammar for brevity
-- End each plan with unresolved questions (if any)
-- Each step should complete ONE task only (e.g., implementation + its tests)
-
-### Before submitting changes for a step
-
-Ensure all code changes adhere to the standards and guidelines below.
-
-### Before starting a new step
-
-- Verify the previous step is fully complete and accepted
-- Commit all changes from the previous step with a concise message
-
 ### Common Commands
 
 ```bash
@@ -65,13 +48,9 @@ pnpm soko-typings       # Generate Soko typings
 
 ### Running Tests
 
-Currently, there are no unit test files in the main packages. The test command primarily runs Hardhat contract tests in the example app.
-
-To run a single Hardhat test:
-
+Currently, there are only E2E tests for the @soko/hardhat-soko package. To run these tests:
 ```bash
-cd apps/hardhat-v2_hardhat-deploy-v0_external-lib
-npx hardhat test test/specific-test.ts
+pnpm test:e2e
 ```
 
 ### Build Dependencies
@@ -270,6 +249,7 @@ packages/hardhat-soko/
 ├── src/
 │   ├── index.ts              # Main plugin entry, task definitions
 │   ├── utils.ts              # Shared utilities and types
+│   ├── local-storage.ts      # Local storage implementation - for pulled artifacts
 │   ├── s3-bucket-provider.ts # Storage provider implementation
 │   └── scripts/
 │       ├── exports.ts        # Public script exports
@@ -303,3 +283,20 @@ packages/hardhat-soko/
 - Always run `pnpm lint` and `pnpm check-types` before committing
 - Generated files in `.soko/` and `.soko-typings/` are gitignored
 - Build outputs (`dist/`, `.next/`, etc.) are gitignored
+
+## Plan Mode
+
+When creating multi-step plans:
+
+- Keep plans extremely concise - sacrifice grammar for brevity
+- End each plan with unresolved questions (if any)
+- Each step should complete ONE task only (e.g., implementation + its tests)
+
+### Before submitting changes for a step
+
+Ensure all code changes adhere to the standards and guidelines below.
+
+### Before starting a new step
+
+- Verify the previous step is fully complete and accepted
+- Commit all changes from the previous step with a concise message
