@@ -18,7 +18,7 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
-  apps/hardhat-v2-external-lib:
+  apps/hardhat-v2_hardhat-deploy-v0_external-lib:
     devDependencies:
       '@nomicfoundation/hardhat-ignition':
         specifier: ^0.15.16
@@ -61,7 +61,58 @@ importers:
         version: 2.2.1(prettier@3.7.4)
       tsup:
         specifier: ^8.3.0
-        version: 8.5.1(postcss@8.4.31)(tsx@4.21.0)(typescript@5.9.2)
+        version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.2)
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+
+  apps/hardhat-v2_hardhat-deploy-v0:
+    devDependencies:
+      '@nomicfoundation/hardhat-ignition':
+        specifier: ^0.15.16
+        version: 0.15.16(@nomicfoundation/hardhat-verify@2.1.3(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2))
+      '@nomicfoundation/hardhat-network-helpers':
+        specifier: ^1.0.0
+        version: 1.1.2(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2))
+      '@nomicfoundation/hardhat-toolbox':
+        specifier: 5.0.0
+        version: 5.0.0(@nomicfoundation/hardhat-chai-matchers@2.1.0(@nomicfoundation/hardhat-ethers@3.1.3(ethers@6.16.0)(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(chai@5.3.3)(ethers@6.16.0)(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(@nomicfoundation/hardhat-ethers@3.1.3(ethers@6.16.0)(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(@nomicfoundation/hardhat-ignition-ethers@0.15.17(@nomicfoundation/hardhat-ethers@3.1.3(ethers@6.16.0)(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(@nomicfoundation/hardhat-ignition@0.15.16(@nomicfoundation/hardhat-verify@2.1.3(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(@nomicfoundation/ignition-core@0.15.15)(ethers@6.16.0)(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(@nomicfoundation/hardhat-network-helpers@1.1.2(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(@nomicfoundation/hardhat-verify@2.1.3(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(@typechain/ethers-v6@0.5.1(ethers@6.16.0)(typechain@8.3.2(typescript@5.9.2))(typescript@5.9.2))(@typechain/hardhat@9.1.0(@typechain/ethers-v6@0.5.1(ethers@6.16.0)(typechain@8.3.2(typescript@5.9.2))(typescript@5.9.2))(ethers@6.16.0)(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2))(typechain@8.3.2(typescript@5.9.2)))(@types/chai@4.3.20)(@types/mocha@10.0.10)(@types/node@22.15.3)(chai@5.3.3)(ethers@6.16.0)(hardhat-gas-reporter@1.0.10(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2))(solidity-coverage@0.8.17(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)))(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typechain@8.3.2(typescript@5.9.2))(typescript@5.9.2)
+      '@nomicfoundation/hardhat-verify':
+        specifier: ^2.1.0
+        version: 2.1.3(hardhat@2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2))
+      '@nomicfoundation/ignition-core':
+        specifier: ^0.15.15
+        version: 0.15.15
+      '@soko/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@soko/hardhat-soko':
+        specifier: workspace:*
+        version: link:../../packages/hardhat-soko
+      '@types/node':
+        specifier: ^22.8.5
+        version: 22.15.3
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1
+      ethers:
+        specifier: ^6.16.0
+        version: 6.16.0
+      hardhat:
+        specifier: 2.28.0
+        version: 2.28.0(ts-node@10.9.2(@types/node@22.15.3)(typescript@5.9.2))(typescript@5.9.2)
+      hardhat-deploy:
+        specifier: ^0.12.4
+        version: 0.12.4
+      prettier-plugin-solidity:
+        specifier: ^2.2.1
+        version: 2.2.1(prettier@3.7.4)
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.2)
       typescript:
         specifier: 5.9.2
         version: 5.9.2
@@ -143,7 +194,7 @@ importers:
         version: 9.39.1
       tsup:
         specifier: ^8.2.4
-        version: 8.5.1(postcss@8.4.31)(tsx@4.21.0)(typescript@5.9.2)
+        version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.2)
       typescript:
         specifier: 5.9.2
         version: 5.9.2
@@ -3332,10 +3383,6 @@ packages:
         optional: true
       yaml:
         optional: true
-
-  postcss@8.4.31:
-    resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
-    engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.6:
     resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
@@ -8553,19 +8600,12 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postcss-load-config@6.0.1(postcss@8.4.31)(tsx@4.21.0):
+  postcss-load-config@6.0.1(postcss@8.5.6)(tsx@4.21.0):
     dependencies:
       lilconfig: 3.1.3
     optionalDependencies:
-      postcss: 8.4.31
+      postcss: 8.5.6
       tsx: 4.21.0
-
-  postcss@8.4.31:
-    dependencies:
-      nanoid: 3.3.11
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-    optional: true
 
   postcss@8.5.6:
     dependencies:
@@ -9216,7 +9256,7 @@ snapshots:
 
   tsort@0.0.1: {}
 
-  tsup@8.5.1(postcss@8.4.31)(tsx@4.21.0)(typescript@5.9.2):
+  tsup@8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.2):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.27.2)
       cac: 6.7.14
@@ -9227,7 +9267,7 @@ snapshots:
       fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
       picocolors: 1.1.1
-      postcss-load-config: 6.0.1(postcss@8.4.31)(tsx@4.21.0)
+      postcss-load-config: 6.0.1(postcss@8.5.6)(tsx@4.21.0)
       resolve-from: 5.0.0
       rollup: 4.57.1
       source-map: 0.7.6
@@ -9236,7 +9276,7 @@ snapshots:
       tinyglobby: 0.2.15
       tree-kill: 1.2.2
     optionalDependencies:
-      postcss: 8.4.31
+      postcss: 8.5.6
       typescript: 5.9.2
     transitivePeerDependencies:
       - jiti

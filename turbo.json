@@ -7,7 +7,7 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": [
-        /* hardhat-v2-external-lib */
+        /* hardhat-v2_hardhat-deploy-v0_external-lib */
         "AWS_REGION",
         "AWS_S3_BUCKET",
         "AWS_ACCESS_KEY_ID",

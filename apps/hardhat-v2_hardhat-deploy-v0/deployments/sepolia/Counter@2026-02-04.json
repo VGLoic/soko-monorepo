@@ -1,0 +1,58 @@
+{
+  "address": "0xD41DF5C394ea18595BcCF35f7363A3Cf63a68157",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "counter",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "increment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "incrementAmount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x2d3f66da4652f6717504699e8cf35893b47f9a4465b22624984b37bf9950a7e7",
+  "receipt": {
+    "to": null,
+    "from": "0x25371B936fD45e67F00dfEa1cd6A3e77105DD0FA",
+    "contractAddress": "0xD41DF5C394ea18595BcCF35f7363A3Cf63a68157",
+    "transactionIndex": 83,
+    "gasUsed": "131135",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x0fc9b2459271a0f105c6ce542573e41ea26c48f1507369db7e656f75ebc4dd9e",
+    "transactionHash": "0x2d3f66da4652f6717504699e8cf35893b47f9a4465b22624984b37bf9950a7e7",
+    "logs": [],
+    "blockNumber": 10190706,
+    "cumulativeGasUsed": "9720042",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "metadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"counter\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"increment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"incrementAmount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Counter.sol\":\"Counter\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Counter.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.28;\\n\\ncontract Counter {\\n    uint256 public counter;\\n\\n    uint256 public incrementAmount = 1;\\n\\n    function increment() public {\\n        counter += incrementAmount * 1;\\n    }\\n}\\n\",\"keccak256\":\"0x6d6af0b99d5fbc82c9ab99395fe5dda39bf2358ae18dd1136be7350d68258b03\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "608060405260018055348015601357600080fd5b50610101806100236000396000f3fe6080604052348015600f57600080fd5b5060043610603c5760003560e01c806361bc221a146041578063a4a049dd14605b578063d09de08a146063575b600080fd5b604960005481565b60405190815260200160405180910390f35b604960015481565b6069606b565b005b6001805460769160a1565b6000808282546084919060bb565b9091555050565b634e487b7160e01b600052601160045260246000fd5b808202811582820484141760b55760b5608b565b92915050565b8082018082111560b55760b5608b56fea26469706673582212201b3d830575634296d33109e9114699fa425010abe7db48e5ae53dcb4bdb47d1364736f6c634300081c0033"
+}

@@ -1,5 +1,5 @@
 {
-  "name": "hardhat-v2-external-lib",
+  "name": "hardhat-v2_hardhat-deploy-v0_external-lib",
   "version": "1.0.0",
   "scripts": {
     "soko-typings": "hardhat soko typings",
