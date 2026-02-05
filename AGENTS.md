@@ -1,6 +1,6 @@
 # Agent Guidelines for Soko Monorepo
 
-This document provides guidelines for AI coding agents working in the Soko monorepo.
+Guidelines for AI coding agents working in the Soko monorepo.
 
 ## Project Overview
 
@@ -11,54 +11,41 @@ Soko is a warehouse for smart-contract compilation artifacts. It enables teams t
 - `packages/hardhat-soko`: Hardhat plugin for Soko (main package)
 - `packages/eslint-config`: Shared ESLint configurations
 - `packages/typescript-config`: Shared TypeScript configurations
-- `apps/hardhat-v2_hardhat-deploy-v0`: Integration example with Hardhat v2 and Hardhat Deploy v0.12,
-- `apps/hardhat-v2_hardhat-deploy-v0_external-lib`: Integration example with Hardhat v2, Hardhat Deploy v0.12, and an external library.
+- `apps/*`: Integration examples with Hardhat v2 and Hardhat Deploy
 
 ## Build System
 
 **Package Manager:** pnpm 9.0.0 (required)
 **Build Tool:** Turborepo
-**Node Version:** >=18 (use `nvm use` to ensure correct version)
+**Node Version:** >=18 (use `nvm use`)
 
-### Common Commands
+### Commands
 
 ```bash
-# Root level (affects all packages)
+# Root level
 pnpm build              # Build all packages
-pnpm dev                # Run dev mode for all packages
-pnpm test               # Run tests for all packages
+pnpm test               # Run all tests
+pnpm test:e2e           # Run E2E tests for hardhat-soko
 pnpm lint               # Lint all packages
 pnpm format             # Format all packages
-pnpm check-format       # Check formatting
 pnpm check-types        # Typecheck all packages
 
-# Package-specific (run from package directory)
+# Package-specific (from package directory)
 cd packages/hardhat-soko
 pnpm build              # Build using tsup
 pnpm lint               # ESLint with max 0 warnings
-pnpm format             # Format TypeScript files
-pnpm check-types        # TypeScript type checking
+pnpm test:e2e           # Run E2E tests (uses Vitest)
 
-# App-specific (Hardhat example)
-cd apps/hardhat-v2_hardhat-deploy-v0_external-lib
-pnpm compile            # Compile contracts (formats then compiles)
-pnpm format             # Format source files
-pnpm soko-typings       # Generate Soko typings
+# Run single test file
+pnpm vitest run test/e2e/push-pull.e2e.test.ts
+
+# Run single test by name pattern
+pnpm vitest run -t "test name pattern"
 ```
 
-### Running Tests
+**Test Framework:** Vitest with global setup, 60s timeout, located in `test/**/*.e2e.test.ts`
 
-Currently, there are only E2E tests for the @soko/hardhat-soko package. To run these tests:
-```bash
-pnpm test:e2e
-```
-
-### Build Dependencies
-
-Turborepo manages dependencies between tasks. Notable dependencies:
-
-- `lint`, `check-types`, and `test` depend on `build`
-- Each package's tasks depend on its dependencies' tasks (via `^task` syntax)
+**Build Dependencies:** Turborepo manages task dependencies. `lint`, `check-types`, and `test` depend on `build` completing first.
 
 ## Code Style Guidelines
 
@@ -141,13 +128,13 @@ const ZBuildInfo = z.object({...});
 const ZAbi = z.array(...);
 ```
 
-**Constants:** SCREAMING_SNAKE_CASE for log colors and configuration, to be used with `styleText` for console output:
+**Constants:** SCREAMING_SNAKE_CASE for log colors and configuration:
 
 ```typescript
 export const LOG_COLORS = {
-  log: "\x1b[0m%s\x1b[0m",
-  success: "\x1b[32m%s\x1b[0m",
-};
+  log: "cyan",
+  success: "green",
+} as const;
 ```
 
 ### Type Safety
@@ -188,7 +175,8 @@ type Result<T> =
 
 **Use custom error classes for CLI methods:**
 
-All CLI methods (@soko/hardhat-soko/src/cli-client/*) MUST throw `CliError` class instance.
+All CLI methods (@soko/hardhat-soko/src/cli-client/\*) MUST throw `CliError` class instance.
+
 ```typescript
 export class CliError extends Error {
   constructor(message: string) {
@@ -214,7 +202,6 @@ if (!ensureResult.success) {
 **Use standard `Error` for internal methods:**
 
 Internal methods can diretly throw `Error` instances, no further wrapping is needed for now.
-
 
 **Use result wrappers for async operations:**
 
@@ -256,9 +243,7 @@ await pull(
     debug: sokoConfig.debug || optsParsingResult.data.debug,
   },
 )
-  .then((result) =>
-    displayPullResults(optsParsingResult.data.project, result),
-  )
+  .then((result) => displayPullResults(optsParsingResult.data.project, result))
   .catch((err) => {
     if (err instanceof CliError) {
       cliError(err.message);
