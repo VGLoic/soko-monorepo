@@ -42,8 +42,6 @@ It will first pull the compilation artifacts from `Soko`:
 npx hardhat soko pull
 ```
 
-REMIND ME: Add image of list output once more beautiful
-
 Then, generates the typings in order to write a type-safe deployment script:
 
 ```bash
