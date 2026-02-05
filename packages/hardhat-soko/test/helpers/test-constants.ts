@@ -21,9 +21,15 @@ export const TEST_CONSTANTS = {
   PATHS: {
     TEMP_DIR_PREFIX: "soko-test-",
     FIXTURES: path.resolve(process.cwd(), "test/fixtures"),
-    SAMPLE_ARTIFACT: path.resolve(
-      process.cwd(),
-      "test/fixtures/build-info/sample-artifact.json",
-    ),
+    SAMPLE_ARTIFACT: {
+      HARDHAT_V2_COUNTER: path.resolve(
+        process.cwd(),
+        "test/fixtures/hardhat-v2-counter/build-info/sample-artifact.json",
+      ),
+      FOUNDRY_COUNTER: path.resolve(
+        process.cwd(),
+        "test/fixtures/foundry-counter/build-info/sample-artifact.json",
+      ),
+    },
   },
 } as const;
