@@ -37,32 +37,6 @@ Soko stores compilation artifacts in your storage backend of choice, for now onl
 See the [Hardhat Soko documentation](packages/hardhat-soko/README.md)
 for a complete guide of the plugin, its commands, configuration options and features.
 
-### Configure
-
-Import and configure the plugin in the `hardhat.config.ts` file:
-
-```ts
-// hardhat.config.ts
-import { HardhatUserConfig } from "hardhat/config";
-...
-import "@soko/hardhat-soko";
-
-export const config: HardhatUserConfig = {
-  ... // Existing configuration
-  // Example configuration for Soko with AWS S3 as storage for compilation artifacts
-  soko: {
-    project: "doubtful-project",
-    storageConfiguration: {
-      type: "aws",
-      awsRegion: MY_AWS_REGION,
-      awsBucketName: MY_AWS_S3_BUCKET,
-      awsAccessKeyId: MY_AWS_ACCESS_KEY_ID,
-      awsSecretAccessKey: MY_AWS_SECRET_ACCESS_KEY,
-    },
-  },
-}
-```
-
 ### Development process
 
 Once compilation is done, push the artifacts to Soko under a specific tag
