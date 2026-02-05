@@ -1,7 +1,7 @@
 import ora, { Ora } from "ora";
 import boxen from "boxen";
 import { styleText } from "node:util";
-import { PullResult, type ListResult } from "./cli-client/index";
+import { Difference, PullResult, type ListResult } from "./cli-client/index";
 
 /**
  * CLI UI utilities for enhanced terminal output
@@ -237,6 +237,46 @@ function deriveTimeAgo(time: string): string {
     return `${minutes}m ago`;
   }
   return `Less than a minute ago`;
+}
+
+export function displayDifferences(differences: Difference[]): void {
+  if (differences.length === 0) {
+    console.error("");
+    success("No differences found");
+    console.error("");
+    return;
+  }
+
+  const added = differences.filter((d) => d.status === "added");
+  const removed = differences.filter((d) => d.status === "removed");
+  const changed = differences.filter((d) => d.status === "changed");
+
+  const summaryLines: string[] = [];
+
+  if (changed.length > 0) {
+    summaryLines.push(styleText(["bold", "yellow"], "Changed:"));
+    changed.forEach((diff) => {
+      summaryLines.push(styleText("yellow", `  • ${diff.name} (${diff.path})`));
+    });
+  }
+
+  if (added.length > 0) {
+    if (summaryLines.length > 0) summaryLines.push("");
+    summaryLines.push(styleText(["bold", "green"], "Added:"));
+    added.forEach((diff) => {
+      summaryLines.push(styleText("green", `  • ${diff.name} (${diff.path})`));
+    });
+  }
+
+  if (removed.length > 0) {
+    if (summaryLines.length > 0) summaryLines.push("");
+    summaryLines.push(styleText(["bold", "red"], "Removed:"));
+    removed.forEach((diff) => {
+      summaryLines.push(styleText("red", `  • ${diff.name} (${diff.path})`));
+    });
+  }
+
+  boxSummary("Differences Found", summaryLines);
 }
 
 /**

@@ -3,24 +3,26 @@ import { extendConfig, scope } from "hardhat/config";
 import { HardhatConfig, HardhatUserConfig } from "hardhat/types/config";
 import { z } from "zod";
 import { styleText } from "node:util";
-import { ScriptError, toAsyncResult } from "./utils";
 import { S3BucketProvider } from "./s3-bucket-provider";
-import { generateArtifactsSummariesAndTypings } from "./scripts/generate-typings";
 import { LocalStorage } from "./local-storage";
-import { generateDiffWithTargetRelease } from "./scripts/diff";
 import {
   boxHeader,
-  boxSummary,
-  createSpinner,
   error as cliError,
-  success as cliSuccess,
   info as cliInfo,
   displayListResults,
   displayPullResults,
   displayPushResult,
+  displayDifferences,
 } from "./cli-ui";
 import { SokoHardhatConfig, SokoHardhatUserConfig } from "./config";
-import { CliError, listPulledArtifacts, pull, push } from "./cli-client/index";
+import {
+  CliError,
+  generateArtifactsSummariesAndTypings,
+  generateDiffWithTargetRelease,
+  listPulledArtifacts,
+  pull,
+  push,
+} from "./cli-client/index";
 
 export { type SokoHardhatUserConfig };
 
@@ -307,46 +309,25 @@ The typings will be generated in the configured typings path.
 
     const localStorage = new LocalStorage(sokoConfig.pulledArtifactsPath);
 
-    const setupSpinner = createSpinner("Setting up local storage...");
-    const ensureResult = await toAsyncResult(localStorage.ensureSetup(), {
-      debug: parsingResult.data.debug,
-    });
-    if (!ensureResult.success) {
-      setupSpinner.fail("Failed to setup local storage");
-      if (ensureResult.error instanceof ScriptError) {
-        cliError(ensureResult.error.message);
-        process.exitCode = 1;
-        return;
-      }
-      cliError("An unexpected error occurred");
-      console.error(ensureResult.error);
-      process.exitCode = 1;
-      return;
-    }
-    setupSpinner.succeed("Local storage ready");
-
-    const generateSpinner = createSpinner("Generating typings...");
     await generateArtifactsSummariesAndTypings(
       sokoConfig.typingsPath,
-      false,
+      localStorage,
       {
         debug: parsingResult.data.debug,
       },
-      localStorage,
     )
       .then(() => {
-        generateSpinner.succeed("Typings generated successfully");
         console.error("");
       })
       .catch((err) => {
-        generateSpinner.fail("Failed to generate typings");
-        if (err instanceof ScriptError) {
+        if (err instanceof CliError) {
           cliError(err.message);
-          process.exitCode = 1;
-          return;
+        } else {
+          cliError(
+            "An unexpected error occurred, please fill an issue with the error details if the problem persists",
+          );
+          console.error(err);
         }
-        cliError("An unexpected error occurred");
-        console.error(err);
         process.exitCode = 1;
       });
   });
@@ -463,95 +444,26 @@ sokoScope
 
     const localStorage = new LocalStorage(sokoConfig.pulledArtifactsPath);
 
-    const ensureSpinner = createSpinner("Setting up local storage...");
-    const ensureResult = await toAsyncResult(
-      localStorage.ensureProjectSetup(sokoConfig.project),
-      { debug: paramParsingResult.data.debug },
-    );
-    if (!ensureResult.success) {
-      ensureSpinner.fail("Failed to setup local storage");
-      if (ensureResult.error instanceof ScriptError) {
-        cliError(ensureResult.error.message);
+    await generateDiffWithTargetRelease(
+      paramParsingResult.data.artifactPath,
+      { project: sokoConfig.project, tagOrId },
+      localStorage,
+      {
+        debug: paramParsingResult.data.debug,
+      },
+    )
+      .then(displayDifferences)
+      .catch((err) => {
+        if (err instanceof CliError) {
+          cliError(err.message);
+        } else {
+          cliError(
+            "An unexpected error occurred, please fill an issue with the error details if the problem persists",
+          );
+          console.error(err);
+        }
         process.exitCode = 1;
-        return;
-      }
-      cliError("An unexpected error occurred");
-      console.error(ensureResult.error);
-      process.exitCode = 1;
-      return;
-    }
-    ensureSpinner.succeed("Local storage ready");
-
-    const compareSpinner = createSpinner("Comparing artifacts...");
-    const differencesResult = await toAsyncResult(
-      generateDiffWithTargetRelease(
-        paramParsingResult.data.artifactPath,
-        { project: sokoConfig.project, tagOrId },
-        {
-          debug: paramParsingResult.data.debug,
-        },
-        localStorage,
-      ),
-    );
-    if (!differencesResult.success) {
-      compareSpinner.fail("Failed to compare artifacts");
-      if (differencesResult.error instanceof ScriptError) {
-        cliError(differencesResult.error.message);
-        process.exitCode = 1;
-        return;
-      }
-      cliError("An unexpected error occurred");
-      console.error(differencesResult.error);
-      process.exitCode = 1;
-      return;
-    }
-    compareSpinner.succeed("Comparison complete");
-
-    if (differencesResult.value.length === 0) {
-      console.error("");
-      cliSuccess("No differences found");
-      console.error("");
-      return;
-    }
-
-    const added = differencesResult.value.filter((d) => d.status === "added");
-    const removed = differencesResult.value.filter(
-      (d) => d.status === "removed",
-    );
-    const changed = differencesResult.value.filter(
-      (d) => d.status === "changed",
-    );
-
-    const summaryLines: string[] = [];
-
-    if (changed.length > 0) {
-      summaryLines.push(styleText(["bold", "yellow"], "Changed:"));
-      changed.forEach((diff) => {
-        summaryLines.push(
-          styleText("yellow", `  • ${diff.name} (${diff.path})`),
-        );
       });
-    }
-
-    if (added.length > 0) {
-      if (summaryLines.length > 0) summaryLines.push("");
-      summaryLines.push(styleText(["bold", "green"], "Added:"));
-      added.forEach((diff) => {
-        summaryLines.push(
-          styleText("green", `  • ${diff.name} (${diff.path})`),
-        );
-      });
-    }
-
-    if (removed.length > 0) {
-      if (summaryLines.length > 0) summaryLines.push("");
-      summaryLines.push(styleText(["bold", "red"], "Removed:"));
-      removed.forEach((diff) => {
-        summaryLines.push(styleText("red", `  • ${diff.name} (${diff.path})`));
-      });
-    }
-
-    boxSummary("Differences Found", summaryLines);
   });
 
 sokoScope
