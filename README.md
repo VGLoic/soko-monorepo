@@ -12,7 +12,7 @@
 
 ## What is Soko?
 
-> [!WARNING]
+> [!NOTE]
 > Work in progress.
 
 Soko enables teams to **version**, **store** and **share** smart-contract compilation artifacts.  
