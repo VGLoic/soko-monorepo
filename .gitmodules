@@ -1,0 +1,3 @@
+[submodule "apps/foundry_hardhat-deploy-v0/lib/forge-std"]
+	path = apps/foundry_hardhat-deploy-v0/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

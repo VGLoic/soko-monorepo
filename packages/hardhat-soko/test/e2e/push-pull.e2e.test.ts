@@ -28,9 +28,57 @@ describe("Push-Pull E2E Tests", () => {
     }
   });
 
-  test("push artifact without tag → pull by ID", async () => {
+  test("push artifact [Hardhat V2 Counter] without tag → pull by ID", async () => {
     const project = createTestProjectName(TEST_CONSTANTS.PROJECTS.DEFAULT);
-    const artifactPath = TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT;
+    const artifactPath =
+      TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT.HARDHAT_V2_COUNTER;
+
+    await localStorage.ensureProjectSetup(project);
+
+    const artifactId = await pushArtifact(
+      artifactPath,
+      project,
+      undefined,
+      { force: false, debug: false },
+      storageProvider,
+    );
+
+    expect(artifactId).toBeTruthy();
+    expect(artifactId).toHaveLength(12);
+
+    const hasArtifact = await storageProvider.hasArtifactById(
+      project,
+      artifactId,
+    );
+    expect(hasArtifact).toBe(true);
+
+    const pullResult = await pull(
+      project,
+      artifactId,
+      { force: false, debug: false },
+      localStorage,
+      storageProvider,
+    );
+
+    expect(pullResult.pulledIds).toContain(artifactId);
+    expect(pullResult.failedIds).toHaveLength(0);
+
+    const hasLocal = await localStorage.hasId(project, artifactId);
+    expect(hasLocal).toBe(true);
+
+    const localArtifact = await localStorage.retrieveArtifactById(
+      project,
+      artifactId,
+    );
+    const originalContent = await fs.readFile(artifactPath, "utf-8");
+    const originalJson = JSON.parse(originalContent) as { id: string };
+
+    expect(localArtifact.id).toBe(originalJson.id);
+  });
+
+  test("push artifact [Foundry Counter] without tag → pull by ID", async () => {
+    const project = createTestProjectName(TEST_CONSTANTS.PROJECTS.DEFAULT);
+    const artifactPath = TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT.FOUNDRY_COUNTER;
 
     await localStorage.ensureProjectSetup(project);
 
@@ -78,7 +126,8 @@ describe("Push-Pull E2E Tests", () => {
   test("push artifact with tag → pull by tag", async () => {
     const project = createTestProjectName(TEST_CONSTANTS.PROJECTS.DEFAULT);
     const tag = TEST_CONSTANTS.TAGS.V1;
-    const artifactPath = TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT;
+    const artifactPath =
+      TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT.HARDHAT_V2_COUNTER;
 
     await localStorage.ensureProjectSetup(project);
 
@@ -120,7 +169,8 @@ describe("Push-Pull E2E Tests", () => {
     const project = createTestProjectName(
       TEST_CONSTANTS.PROJECTS.MULTI_ARTIFACT,
     );
-    const artifactPath = TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT;
+    const artifactPath =
+      TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT.HARDHAT_V2_COUNTER;
 
     await localStorage.ensureProjectSetup(project);
 
@@ -158,7 +208,8 @@ describe("Push-Pull E2E Tests", () => {
   test("force push overwrites existing tag", async () => {
     const project = createTestProjectName(TEST_CONSTANTS.PROJECTS.FORCE_TEST);
     const tag = TEST_CONSTANTS.TAGS.LATEST;
-    const artifactPath = TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT;
+    const artifactPath =
+      TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT.HARDHAT_V2_COUNTER;
 
     await localStorage.ensureProjectSetup(project);
 
@@ -197,7 +248,8 @@ describe("Push-Pull E2E Tests", () => {
   test("pull with force re-downloads existing artifacts", async () => {
     const project = createTestProjectName(TEST_CONSTANTS.PROJECTS.DEFAULT);
     const tag = TEST_CONSTANTS.TAGS.V1;
-    const artifactPath = TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT;
+    const artifactPath =
+      TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT.HARDHAT_V2_COUNTER;
 
     await localStorage.ensureProjectSetup(project);
 
@@ -253,7 +305,8 @@ describe("Push-Pull E2E Tests", () => {
 
   test("list operations work correctly", async () => {
     const project = createTestProjectName(TEST_CONSTANTS.PROJECTS.DEFAULT);
-    const artifactPath = TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT;
+    const artifactPath =
+      TEST_CONSTANTS.PATHS.SAMPLE_ARTIFACT.HARDHAT_V2_COUNTER;
 
     await localStorage.ensureProjectSetup(project);
 

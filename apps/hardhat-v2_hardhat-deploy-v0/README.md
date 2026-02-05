@@ -1,8 +1,8 @@
-# Hardhat Soko - Example - Deploy Counter with external library
+# Hardhat Soko - Example - Deploy Counter
 
 This is an example of integration between [Hardhat V2](https://v2.hardhat.org/) and [Soko](https://github.com/VGLoic/soko-monorepo).
 
-The static compilation artifacts from `Soko` are used to deploy a simple `Counter` contract, see [Counter.sol](./src/Counter.sol), that depends on an external library `LibCounter`, see [LibCounter.sol](./src/LibCounter.sol).
+The static compilation artifacts from `Soko` are used to deploy a simple `Counter` contract, see [Counter.sol](./src/Counter.sol).
 
 The [Hardhat-Deploy](https://rocketh.dev/hardhat-deploy/) (`hardhat-deploy@0.12.4` i.e. `v0`) plugin is used to manage deployments.
 
@@ -10,7 +10,7 @@ The [Hardhat-Deploy](https://rocketh.dev/hardhat-deploy/) (`hardhat-deploy@0.12.
 
 ### Content
 
-In this example, we implement a a simple `Counter` contract that relies on an external library `IncrementOracle` to increment its value, see [Counter.sol](./src/Counter.sol) and [IncrementOracle.sol](./src/IncrementOracle.sol).
+In this example, we implement a a simple `Counter` contract, see [Counter.sol](./src/Counter.sol).
 
 ### Development phase
 
@@ -27,13 +27,13 @@ npx hardhat compile
 The compilation artifacts will be pushed to `Soko`, hence freezing them for later use.
 
 ```bash
-# The tag v1.0.1 is arbitrary, it can be any string identifying the release
-npx hardhat soko push --artifact-path ./artifacts --tag v1.0.1
+# The tag 2026-02-04 is arbitrary, it can be any string identifying the release
+npx hardhat soko push --artifact-path ./artifacts --tag 2026-02-04
 ```
 
 ### Deployment phase
 
-Later on, the same developper or another one wants to deploy the contracts for the `v1.0.1` release.
+Later on, the same developper or another one wants to deploy the contracts for the `2026-02-04` release.
 It will first pull the compilation artifacts from `Soko`:
 
 ```bash
@@ -48,38 +48,29 @@ Then, generates the typings in order to write a type-safe deployment script:
 npx hardhat soko typings
 ```
 
-Finally, the deployer can write a deployment script, e.g. [00-deploy-counter-v1.0.1.ts](./deploy/00-deploy-counter-v1.0.1.ts), that will retrieve the compilation artifacts from `Soko` and deploy the contracts accordingly.
+Finally, the deployer can write a deployment script, e.g. [00-deploy-counter-2026-02-04.ts](./deploy/00-deploy-counter-2026-02-04.ts), that will retrieve the compilation artifacts from `Soko` and deploy the contract accordingly.
 
 ```ts
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 import { project } from "../.soko-typings";
 
-const TARGET_RELEASE = "v1.0.1";
+const TARGET_RELEASE = "2026-02-04";
 
 const deployCounter: DeployFunction = async function (
   hre: HardhatRuntimeEnvironment,
 ) {
   const { deployer } = await hre.getNamedAccounts();
 
-  // Get project utilities for the target release
-  const projectUtils = project("doubtful-counter").tag(TARGET_RELEASE);
+  const balance = await hre.ethers.provider.getBalance(deployer);
 
-  // Get the `IncrementOracle` artifact for the target release and deploy it
-  const incrementOracleArtifact = await projectUtils.getContractArtifact(
-    "src/IncrementOracle.sol:IncrementOracle",
-  );
-  const incrementOracleDeployment = await hre.deployments.deploy(
-    `IncrementOracle@${TARGET_RELEASE}`,
-    {
-      contract: {
-        abi: incrementOracleArtifact.abi,
-        bytecode: incrementOracleArtifact.evm.bytecode.object,
-        metadata: incrementOracleArtifact.metadata,
-      },
-      from: deployer,
-    },
-  );
+  console.log("Deploying contracts with account: ", {
+    address: deployer,
+    balance: hre.ethers.formatEther(balance),
+  });
+
+  // Get project utilities for the target release
+  const projectUtils = project("dummy-counter").tag(TARGET_RELEASE);
 
   // Get the `Counter` artifact for the target release and deploy it
   const counterArtifact = await projectUtils.getContractArtifact(
@@ -91,11 +82,8 @@ const deployCounter: DeployFunction = async function (
       bytecode: counterArtifact.evm.bytecode.object,
       metadata: counterArtifact.metadata,
     },
-    libraries: {
-      "src/IncrementOracle.sol:IncrementOracle":
-        incrementOracleDeployment.address,
-    },
     from: deployer,
+    log: true,
   });
 };
 ```

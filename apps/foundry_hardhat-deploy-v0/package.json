@@ -1,16 +1,15 @@
 {
-  "name": "hardhat-v2_hardhat-deploy-v0_external-lib",
+  "name": "foundry_hardhat-deploy-v0",
   "version": "1.0.0",
   "scripts": {
     "soko-typings": "hardhat soko typings",
-    "test": "hardhat test",
     "lint": "pnpm run soko-typings && eslint . --max-warnings 0",
-    "check-format": "prettier --check --ignore-unknown --plugin=prettier-plugin-solidity 'src/**/*.sol'",
-    "format-contracts": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol'",
-    "format": "prettier --write --plugin=prettier-plugin-solidity 'src/**/*.sol'",
-    "compile": "pnpm run format-contracts && hardhat compile --force --no-typechain",
+    "check-format": "forge fmt --check",
+    "format-contracts": "forge fmt",
+    "format": "forge fmt",
     "deploy-contracts": "hardhat deploy --no-compile",
     "hardhat": "hardhat",
+    "compile": "forge build --skip test --skip script --force",
     "check-types": "pnpm run soko-typings && tsc --noEmit"
   },
   "devDependencies": {

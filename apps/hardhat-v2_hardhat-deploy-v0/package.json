@@ -1,5 +1,5 @@
 {
-  "name": "hardhat-v2-_hardhat-deploy-v0",
+  "name": "hardhat-v2_hardhat-deploy-v0",
   "version": "1.0.0",
   "scripts": {
     "soko-typings": "hardhat soko typings",
@@ -27,7 +27,6 @@
     "hardhat": "2.28.0",
     "hardhat-deploy": "^0.12.4",
     "prettier-plugin-solidity": "^2.2.1",
-    "tsup": "^8.3.0",
     "typescript": "5.9.2",
     "zod": "^3.23.8"
   }
