@@ -1,6 +1,7 @@
 import ora, { Ora } from "ora";
 import boxen from "boxen";
 import { styleText } from "node:util";
+import { ListResult } from "./cli-client";
 
 /**
  * CLI UI utilities for enhanced terminal output
@@ -139,10 +140,51 @@ export function info(message: string): void {
   console.error(styleText("cyan", `ℹ ${message}`));
 }
 
+// ##########################################
+// ########### CLI RESULT DISPLAY ###########
+// ##########################################
+
+export function displayListResults(data: ListResult): void {
+  if (data.length === 0) {
+    warn("No artifacts found");
+    return;
+  }
+
+  const structuredData = data.map((item) => ({
+    Project: item.project,
+    Tag: item.tag,
+    ID: item.id,
+    "Pull date": deriveTimeAgo(item.lastModifiedAt),
+  }));
+
+  colorTableHeaders(structuredData, ["Project", "Tag", "ID", "Pull date"]);
+}
+
+function deriveTimeAgo(time: string): string {
+  const now = new Date();
+  const then = new Date(time);
+  const diff = now.getTime() - then.getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) {
+    return `${days}d ago`;
+  }
+  if (hours > 0) {
+    return `${hours}h ago`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ago`;
+  }
+  return `Less than a minute ago`;
+}
+
 /**
  * Creates a colored table header row with fixed column widths
  */
-export function colorTableHeaders(
+function colorTableHeaders(
   data: Record<string, unknown>[],
   headers: string[],
 ): void {

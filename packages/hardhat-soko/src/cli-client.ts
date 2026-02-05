@@ -42,18 +42,11 @@ export class CliClient {
    * @returns An object with the remote tags and IDs, pulled tags and IDs, and failed tags and IDs
    *
    */
-  async pull(
+  public async pull(
     project: string,
     tagOrId: string | undefined,
     opts: { force: boolean },
-  ): Promise<{
-    remoteTags: string[];
-    remoteIds: string[];
-    pulledTags: string[];
-    pulledIds: string[];
-    failedTags: string[];
-    failedIds: string[];
-  }> {
+  ): Promise<PullResult> {
     const steps = new StepTracker(4);
 
     // Step 1: Set up local storage
@@ -300,7 +293,7 @@ export class CliClient {
    * @param opts Options for the push command, currently only supports the force option to skip the check of existing tag in the storage
    * @returns The generated artifact ID
    */
-  async push(
+  public async push(
     artifactPath: string,
     project: string,
     tag: string | undefined,
@@ -384,7 +377,128 @@ export class CliClient {
 
     return artifactId;
   }
+
+  /**
+   * List the artifacts that have been pulled to the local storage, it consists of two steps:
+   * 1. Fetch the list of projects, tags, and IDs from the local storage
+   * 2. Structure the data in a user-friendly format for display
+   *
+   * The method returns an array of artifact items containing the project, tag, ID, and last modified date.
+   *
+   * @throws CliError if there is an error fetching the data from the local storage. The error messages are meant to be user-friendly and can be directly shown to the user.
+   * @returns The list of artifacts in the local storage with their project, tag, ID, and last modified date
+   */
+  public async listPulledArtifacts(): Promise<ListResult> {
+    const ensureResult = await toAsyncResult(this.localStorage.ensureSetup(), {
+      debug: this.debug,
+    });
+    if (!ensureResult.success) {
+      throw new CliError(
+        "Error setting up local storage, is the script not allowed to write to the filesystem? Run with debug mode for more info",
+      );
+    }
+
+    const projectsResult = await toAsyncResult(
+      this.localStorage.listProjects(),
+      {
+        debug: this.debug,
+      },
+    );
+    if (!projectsResult.success) {
+      throw new CliError(
+        "Error listing the projects, please run with debug mode for more info",
+      );
+    }
+
+    const items: ArtifactItem[] = [];
+    const idsAlreadyVisited = new Set<string>();
+    const projects = projectsResult.value;
+    for (const project of projects) {
+      const tagsResult = await toAsyncResult(
+        this.localStorage.listTags(project),
+        {
+          debug: this.debug,
+        },
+      );
+      if (!tagsResult.success) {
+        throw new CliError(
+          `Error listing the tags for project "${project}", please force pull the project to restore it or run with debug mode for more info`,
+        );
+      }
+
+      const artifactsPromises = tagsResult.value.map((metadata) =>
+        this.localStorage
+          .retrieveArtifactId(project, metadata.tag)
+          .then((artifactId) => ({
+            metadata,
+            artifactId,
+          })),
+      );
+      const artifactsResults = await toAsyncResult(
+        Promise.all(artifactsPromises),
+        { debug: this.debug },
+      );
+      if (!artifactsResults.success) {
+        throw new CliError(
+          `Error retrieving the content for project "${project}", please force pull the project to restore it or run with debug mode for more info`,
+        );
+      }
+
+      for (const { metadata, artifactId } of artifactsResults.value) {
+        items.push({
+          project,
+          id: artifactId,
+          tag: metadata.tag,
+          lastModifiedAt: metadata.lastModifiedAt,
+        });
+        idsAlreadyVisited.add(artifactId);
+      }
+
+      const idsResult = await toAsyncResult(
+        this.localStorage.listIds(project),
+        {
+          debug: this.debug,
+        },
+      );
+      if (!idsResult.success) {
+        throw new CliError(
+          `Error listing the IDs for project "${project}", please force pull the project to restore it or run with debug mode for more info`,
+        );
+      }
+      for (const metadata of idsResult.value) {
+        if (idsAlreadyVisited.has(metadata.id)) {
+          continue;
+        }
+        items.push({
+          project: project,
+          id: metadata.id,
+          tag: null,
+          lastModifiedAt: metadata.lastModifiedAt,
+        });
+        idsAlreadyVisited.add(metadata.id);
+      }
+    }
+    return items;
+  }
 }
+
+export type PullResult = {
+  remoteTags: string[];
+  remoteIds: string[];
+  pulledTags: string[];
+  pulledIds: string[];
+  failedTags: string[];
+  failedIds: string[];
+};
+
+export type ListResult = Array<ArtifactItem>;
+
+type ArtifactItem = {
+  project: string;
+  id: string;
+  tag: string | null;
+  lastModifiedAt: string;
+};
 
 function deriveArtifactSokoId(artifactContent: string): string {
   const hash = crypto.createHash("sha256");

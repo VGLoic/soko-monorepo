@@ -6,9 +6,7 @@ import { styleText } from "node:util";
 import { ScriptError, toAsyncResult } from "./utils";
 import { S3BucketProvider } from "./s3-bucket-provider";
 import { generateArtifactsSummariesAndTypings } from "./scripts/generate-typings";
-// import { pushArtifact } from "./scripts/push";
 import { LocalStorage } from "./local-storage";
-import { generateStructuredDataForArtifacts } from "./scripts/list";
 import { generateDiffWithTargetRelease } from "./scripts/diff";
 import {
   boxHeader,
@@ -16,9 +14,8 @@ import {
   createSpinner,
   error as cliError,
   success as cliSuccess,
-  warn as cliWarn,
-  colorTableHeaders,
   info as cliInfo,
+  displayListResults,
 } from "./cli-ui";
 import { SokoHardhatConfig, SokoHardhatUserConfig } from "./config";
 import { CliClient, CliError } from "./cli-client";
@@ -439,51 +436,32 @@ sokoScope
     boxHeader("Listing artifacts");
 
     const localStorage = new LocalStorage(sokoConfig.pulledArtifactsPath);
-
-    const setupResult = await toAsyncResult(localStorage.ensureSetup(), {
+    const storageProvider = new S3BucketProvider({
+      bucketName: sokoConfig.storageConfiguration.awsBucketName,
+      bucketRegion: sokoConfig.storageConfiguration.awsRegion,
+      accessKeyId: sokoConfig.storageConfiguration.awsAccessKeyId,
+      secretAccessKey: sokoConfig.storageConfiguration.awsSecretAccessKey,
+      role: sokoConfig.storageConfiguration.awsRole,
       debug: parsingResult.data.debug,
     });
-    if (!setupResult.success) {
-      if (setupResult.error instanceof ScriptError) {
-        cliError(setupResult.error.message);
-        process.exitCode = 1;
-        return;
+    const cliClient = new CliClient(storageProvider, localStorage, {
+      debug: parsingResult.data.debug,
+    });
+
+    const listResult = await toAsyncResult(cliClient.listPulledArtifacts());
+    if (!listResult.success) {
+      if (listResult.error instanceof CliError) {
+        cliError(listResult.error.message);
+      } else {
+        cliError(
+          "An unexpected error occurred, please fill an issue with the error details if the problem persists",
+        );
       }
-      cliError("An unexpected error occurred");
-      console.error(setupResult.error);
       process.exitCode = 1;
       return;
     }
 
-    const structuredDataResult = await toAsyncResult(
-      generateStructuredDataForArtifacts(localStorage, {
-        debug: parsingResult.data.debug,
-      }),
-      { debug: parsingResult.data.debug },
-    );
-    if (!structuredDataResult.success) {
-      if (structuredDataResult.error instanceof ScriptError) {
-        cliError(structuredDataResult.error.message);
-        process.exitCode = 1;
-        return;
-      }
-      cliError("An unexpected error occurred");
-      console.error(structuredDataResult.error);
-      process.exitCode = 1;
-      return;
-    }
-
-    if (structuredDataResult.value.length === 0) {
-      cliWarn("No artifacts found");
-      return;
-    }
-
-    colorTableHeaders(structuredDataResult.value, [
-      "Project",
-      "Tag",
-      "ID",
-      "Pull date",
-    ]);
+    displayListResults(listResult.value);
   });
 
 sokoScope
