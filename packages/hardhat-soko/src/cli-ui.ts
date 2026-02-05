@@ -2,6 +2,7 @@ import ora, { Ora } from "ora";
 import boxen from "boxen";
 import { styleText } from "node:util";
 import { Difference, PullResult, type ListResult } from "./cli-client/index";
+import { LOG_COLORS } from "./utils";
 
 /**
  * CLI UI utilities for enhanced terminal output
@@ -116,28 +117,28 @@ export function boxSummary(title: string, lines: string[]): void {
  * Enhanced success message
  */
 export function success(message: string): void {
-  console.error(styleText("green", `✔ ${message}`));
+  console.error(styleText(LOG_COLORS.success, `✔ ${message}`));
 }
 
 /**
  * Enhanced error message
  */
 export function error(message: string): void {
-  console.error(styleText("red", `✖ ${message}`));
+  console.error(styleText(LOG_COLORS.error, `✖ ${message}`));
 }
 
 /**
  * Enhanced warning message
  */
 export function warn(message: string): void {
-  console.error(styleText("yellow", `⚠ ${message}`));
+  console.error(styleText(LOG_COLORS.warn, `⚠ ${message}`));
 }
 
 /**
  * Enhanced info message
  */
 export function info(message: string): void {
-  console.error(styleText("cyan", `ℹ ${message}`));
+  console.error(styleText(LOG_COLORS.log, `ℹ ${message}`));
 }
 
 // ##########################################
@@ -158,30 +159,36 @@ export function displayPullResults(project: string, data: PullResult): void {
     const summaryLines: string[] = [];
 
     if (data.pulledTags.length > 0) {
-      summaryLines.push(styleText(["bold", "green"], "✔ Pulled Tags:"));
+      summaryLines.push(
+        styleText(["bold", LOG_COLORS.success], "✔ Pulled Tags:"),
+      );
       data.pulledTags.forEach((tag) => {
-        summaryLines.push(styleText("green", `  • ${tag}`));
+        summaryLines.push(styleText(LOG_COLORS.success, `  • ${tag}`));
       });
     }
     if (data.pulledIds.length > 0) {
       if (summaryLines.length > 0) summaryLines.push("");
-      summaryLines.push(styleText(["bold", "green"], "✔ Pulled IDs:"));
+      summaryLines.push(
+        styleText(["bold", LOG_COLORS.success], "✔ Pulled IDs:"),
+      );
       data.pulledIds.forEach((id) => {
-        summaryLines.push(styleText("green", `  • ${id}`));
+        summaryLines.push(styleText(LOG_COLORS.success, `  • ${id}`));
       });
     }
     if (data.failedTags.length > 0) {
       if (summaryLines.length > 0) summaryLines.push("");
-      summaryLines.push(styleText(["bold", "red"], "✖ Failed Tags:"));
+      summaryLines.push(
+        styleText(["bold", LOG_COLORS.error], "✖ Failed Tags:"),
+      );
       data.failedTags.forEach((tag) => {
-        summaryLines.push(styleText("red", `  • ${tag}`));
+        summaryLines.push(styleText(LOG_COLORS.error, `  • ${tag}`));
       });
     }
     if (data.failedIds.length > 0) {
       if (summaryLines.length > 0) summaryLines.push("");
-      summaryLines.push(styleText(["bold", "red"], "✖ Failed IDs:"));
+      summaryLines.push(styleText(["bold", LOG_COLORS.error], "✖ Failed IDs:"));
       data.failedIds.forEach((id) => {
-        summaryLines.push(styleText("red", `  • ${id}`));
+        summaryLines.push(styleText(LOG_COLORS.error, `  • ${id}`));
       });
     }
 
@@ -198,7 +205,7 @@ export function displayPushResult(
 ): void {
   console.error("");
   success(`Artifact "${project}:${tag || artifactId}" pushed successfully`);
-  console.error(styleText("cyan", `  ID: ${artifactId}`));
+  console.error(styleText(LOG_COLORS.log, `  ID: ${artifactId}`));
   console.error("");
 }
 
@@ -254,25 +261,31 @@ export function displayDifferences(differences: Difference[]): void {
   const summaryLines: string[] = [];
 
   if (changed.length > 0) {
-    summaryLines.push(styleText(["bold", "yellow"], "Changed:"));
+    summaryLines.push(styleText(["bold", LOG_COLORS.warn], "Changed:"));
     changed.forEach((diff) => {
-      summaryLines.push(styleText("yellow", `  • ${diff.name} (${diff.path})`));
+      summaryLines.push(
+        styleText(LOG_COLORS.warn, `  • ${diff.name} (${diff.path})`),
+      );
     });
   }
 
   if (added.length > 0) {
     if (summaryLines.length > 0) summaryLines.push("");
-    summaryLines.push(styleText(["bold", "green"], "Added:"));
+    summaryLines.push(styleText(["bold", LOG_COLORS.success], "Added:"));
     added.forEach((diff) => {
-      summaryLines.push(styleText("green", `  • ${diff.name} (${diff.path})`));
+      summaryLines.push(
+        styleText(LOG_COLORS.success, `  • ${diff.name} (${diff.path})`),
+      );
     });
   }
 
   if (removed.length > 0) {
     if (summaryLines.length > 0) summaryLines.push("");
-    summaryLines.push(styleText(["bold", "red"], "Removed:"));
+    summaryLines.push(styleText(["bold", LOG_COLORS.error], "Removed:"));
     removed.forEach((diff) => {
-      summaryLines.push(styleText("red", `  • ${diff.name} (${diff.path})`));
+      summaryLines.push(
+        styleText(LOG_COLORS.error, `  • ${diff.name} (${diff.path})`),
+      );
     });
   }
 
@@ -313,7 +326,7 @@ function colorTableHeaders(
 
   // Create header row with fixed widths
   const headerRow = headers
-    .map((h) => styleText(["bold", "cyan"], pad(h, columnWidths[h]!)))
+    .map((h) => styleText(["bold", LOG_COLORS.log], pad(h, columnWidths[h]!)))
     .join(" │ ");
   console.error(`\n ${headerRow}`);
 
@@ -334,11 +347,11 @@ function colorTableHeaders(
       if (typeof value === "string") {
         // Color tags (strings that look like versions)
         if (h === "Tag" && value) {
-          return styleText("green", paddedValue);
+          return styleText(LOG_COLORS.success, paddedValue);
         }
         // Color IDs
         if (h === "ID" && value) {
-          return styleText("yellow", paddedValue);
+          return styleText(LOG_COLORS.warn, paddedValue);
         }
         // Color projects
         if (h === "Project" && value) {

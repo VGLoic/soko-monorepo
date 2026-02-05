@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import { z } from "zod";
 import { keccak256 } from "@ethersproject/keccak256";
 import { toUtf8Bytes } from "@ethersproject/strings";
+import { styleText } from "node:util";
 
 export function toAsyncResult<T, TError = Error>(
   promise: Promise<T>,
@@ -14,7 +15,14 @@ export function toAsyncResult<T, TError = Error>(
     .then((value) => ({ success: true as const, value }))
     .catch((error) => {
       if (opts.debug) {
-        console.error(error);
+        console.error(
+          styleText(
+            LOG_COLORS.error,
+            error instanceof Error
+              ? error.stack || error.message
+              : String(error),
+          ),
+        );
       }
       return { success: false as const, error };
     });
@@ -27,11 +35,11 @@ export class ScriptError extends Error {
 }
 
 export const LOG_COLORS = {
-  log: "\x1b[0m%s\x1b[0m",
-  success: "\x1b[32m%s\x1b[0m",
-  error: "\x1b[31m%s\x1b[0m",
-  warn: "\x1b[33m%s\x1b[0m",
-};
+  log: "cyan",
+  success: "green",
+  error: "red",
+  warn: "yellow",
+} as const;
 
 const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 type Literal = z.infer<typeof literalSchema>;
@@ -217,8 +225,10 @@ export async function retrieveFreshCompilationArtifact(
       entries.every((entry) => entry.isFile() && entry.name.endsWith(".json"))
     ) {
       console.error(
-        LOG_COLORS.log,
-        `Found potential compilation artifacts in path "${inputPath}"`,
+        styleText(
+          LOG_COLORS.log,
+          `Found potential compilation artifacts in path "${inputPath}"`,
+        ),
       );
       finalCompilationArtifactsDirectoryEntries = entries;
     }
@@ -251,8 +261,10 @@ export async function retrieveFreshCompilationArtifact(
 
     compilationArtifactPath = `${finalBasePath}/${checkResult.name}`;
     console.error(
-      LOG_COLORS.log,
-      `Found a potential compilation artifact in path "${compilationArtifactPath}"`,
+      styleText(
+        LOG_COLORS.log,
+        `Found a potential compilation artifact in path "${compilationArtifactPath}"`,
+      ),
     );
   } else {
     return {

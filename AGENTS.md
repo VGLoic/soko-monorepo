@@ -90,7 +90,7 @@ import { z } from "zod";
 import { keccak256 } from "@ethersproject/keccak256";
 
 // Internal imports
-import { LOG_COLORS, ScriptError, toAsyncResult } from "./utils";
+import { LOG_COLORS, toAsyncResult } from "./utils";
 import { S3BucketProvider } from "./s3-bucket-provider";
 ```
 
@@ -141,7 +141,7 @@ const ZBuildInfo = z.object({...});
 const ZAbi = z.array(...);
 ```
 
-**Constants:** SCREAMING_SNAKE_CASE for log colors and configuration
+**Constants:** SCREAMING_SNAKE_CASE for log colors and configuration, to be used with `styleText` for console output:
 
 ```typescript
 export const LOG_COLORS = {
@@ -231,13 +231,13 @@ if (!result.success) {
 
 ### Console Output
 
-Use `LOG_COLORS` for all console output:
+Use `LOG_COLORS` and `styleText` for all console output:
 
 ```typescript
-console.error(LOG_COLORS.success, "\nOperation successful");
-console.error(LOG_COLORS.error, "❌ Operation failed");
-console.error(LOG_COLORS.warn, "⚠️ Warning message");
-console.error(LOG_COLORS.log, "Info message");
+console.error(styleText(LOG_COLORS.success, "\nOperation successful"));
+console.error(styleText(LOG_COLORS.error, "❌ Operation failed"));
+console.error(styleText(LOG_COLORS.warn, "⚠️ Warning message"));
+console.error(styleText(LOG_COLORS.log, "Info message"));
 ```
 
 Note: Use `console.error()` for task output (not `console.log()`) to ensure proper streaming in Hardhat tasks.

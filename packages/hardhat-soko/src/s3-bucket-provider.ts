@@ -9,6 +9,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { AssumeRoleCommand, STSClient } from "@aws-sdk/client-sts";
 import { NodeJsClient } from "@smithy/types";
+import { styleText } from "node:util";
 import { LOG_COLORS, ScriptError } from "./utils";
 
 export interface StorageProvider {
@@ -138,8 +139,10 @@ export class S3BucketProvider implements StorageProvider {
 
     if (this.config.debug) {
       console.error(
-        LOG_COLORS.log,
-        `Assumed role ${role.roleArn} with session ${sessionName} (access key ${credentials.AccessKeyId}, expires ${credentials.Expiration})`,
+        styleText(
+          LOG_COLORS.log,
+          `Assumed role ${role.roleArn} with session ${sessionName} (access key ${credentials.AccessKeyId}, expires ${credentials.Expiration})`,
+        ),
       );
     }
 

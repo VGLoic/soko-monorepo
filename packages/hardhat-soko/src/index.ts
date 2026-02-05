@@ -23,6 +23,7 @@ import {
   pull,
   push,
 } from "./cli-client/index";
+import { LOG_COLORS } from "./utils";
 
 export { type SokoHardhatUserConfig };
 
@@ -48,7 +49,7 @@ extendConfig(
     if (!sokoParsingResult.success) {
       console.error(
         styleText(
-          "yellow",
+          LOG_COLORS.warn,
           `Configuration for Soko has been found but seems invalid. Please consult the below errors: \n${sokoParsingResult.error.errors.map(
             (error) => {
               return `  - ${error.path.join(".")}: ${error.message} (${error.code})`;
