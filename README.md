@@ -94,7 +94,7 @@ import { project } from "../.soko-typings";
 
 async function deployFoo() {
     // Get project utilities for the target tag
-    const projectUtils = project("doubtful-project").tag("2026-02-02");
+    const projectUtils = project("doubtful-project").tag("2026-02-04");
 
     // Get `Foo` static artifact for the target release
     const myContractArtifact = await projectUtils.getContractArtifact(
@@ -103,7 +103,7 @@ async function deployFoo() {
 
     // Deploy `Foo` using the static artifact
     // "À la Hardhat Deploy"
-    await deploy("Foo@2026-02-02", {
+    await deploy("Foo@2026-02-04", {
       contract: {
         abi: myContractArtifact.abi,
         bytecode: myContractArtifact.evm.bytecode.object,
