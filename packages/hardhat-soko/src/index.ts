@@ -68,9 +68,8 @@ const sokoScope = scope("soko", "Soko Hardhat tasks");
 
 sokoScope
   .task("pull", "Pull one or many artifacts of a project.")
-  .addFlag(
-    "aa",
-    `Fake flag - Task description: Pull one or many artifacts of a project.
+  .setDescription(
+    `Pull one or many artifacts of a project.
 
 By default, the project is the one configured in the Hardhat configuration.
 
@@ -86,8 +85,6 @@ A different project can be specified
   npx hardhat soko pull --project another-project
 
 Already downloaded artifacts are not downloaded again by default, enable the force flag to force the download.
-
-
 `,
   )
   .addOptionalParam(
@@ -183,18 +180,16 @@ Already downloaded artifacts are not downloaded again by default, enable the for
 
 sokoScope
   .task("push", "Push a compilation artifact.")
-  .addFlag(
-    "aa",
-    `Fake flag - Task description: Push a compilation artifact.
+  .setDescription(
+    `Push a compilation artifact.
 
 The artifact will be stored in the configured project. An identifier is derived for the artifact.
-  npx hardhat soko push --artifact-path ./path/to-my-artifact/artifact.jsont
+  npx hardhat soko push --artifact-path ./path/to-my-artifact/artifact.json
 
 If a tag is provided, the artifact will also be identified by it:
   npx hardhat soko push --artifact-path ./path/to-my-artifact/artifact.json --tag v1.2.3
 
 If the provided tag already exists in the storage, the push will be aborted unless the force flag is enabled.
-
 `,
   )
   .addParam("artifactPath", "The compilation artifact path to push")
@@ -275,11 +270,9 @@ If the provided tag already exists in the storage, the push will be aborted unle
 
 sokoScope
   .task("typings", "Generate typings based on the existing artifacts.")
-  .addFlag(
-    "aa",
-    `REMIND ME Fake flag - Task description: Generate typings based on the existing artifacts.
+  .setDescription(
+    `Generate typings based on the existing artifacts.
 The typings will be generated in the configured typings path.
-
 `,
   )
   .addFlag("debug", "Enable debug mode")
