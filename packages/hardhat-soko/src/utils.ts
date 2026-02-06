@@ -15,14 +15,7 @@ export function toAsyncResult<T, TError = Error>(
     .then((value) => ({ success: true as const, value }))
     .catch((error) => {
       if (opts.debug) {
-        console.error(
-          styleText(
-            LOG_COLORS.error,
-            error instanceof Error
-              ? error.stack || error.message
-              : String(error),
-          ),
-        );
+        console.error(styleText(LOG_COLORS.error, "[Debug error] - "), error);
       }
       return { success: false as const, error };
     });
