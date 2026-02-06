@@ -10,7 +10,7 @@ import {
 import { AssumeRoleCommand, STSClient } from "@aws-sdk/client-sts";
 import { NodeJsClient } from "@smithy/types";
 import { styleText } from "node:util";
-import { LOG_COLORS } from "./utils";
+import { LOG_COLORS } from "./utils/colors";
 
 export interface StorageProvider {
   listTags(project: string): Promise<string[]>;

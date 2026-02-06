@@ -1,7 +1,7 @@
 import { LocalStorage } from "../local-storage";
 import { StorageProvider } from "../s3-bucket-provider";
 import { StepTracker } from "../cli-ui";
-import { toAsyncResult } from "../utils";
+import { toAsyncResult } from "../utils/result";
 import { CliError } from "./error";
 
 export type PullResult = {

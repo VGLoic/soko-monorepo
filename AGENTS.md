@@ -77,7 +77,7 @@ import { z } from "zod";
 import { keccak256 } from "@ethersproject/keccak256";
 
 // Internal imports
-import { LOG_COLORS, toAsyncResult } from "./utils";
+import { LOG_COLORS } from "./utils/colors";
 import { S3BucketProvider } from "./s3-bucket-provider";
 ```
 
