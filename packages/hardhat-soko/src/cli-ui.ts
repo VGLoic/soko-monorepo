@@ -2,7 +2,7 @@ import ora, { Ora } from "ora";
 import boxen from "boxen";
 import { styleText } from "node:util";
 import { Difference, PullResult, type ListResult } from "./cli-client/index";
-import { LOG_COLORS } from "./utils";
+import { LOG_COLORS } from "./utils/colors";
 
 /**
  * CLI UI utilities for enhanced terminal output

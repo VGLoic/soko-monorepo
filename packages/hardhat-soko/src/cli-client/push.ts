@@ -1,6 +1,7 @@
 import { StorageProvider } from "../s3-bucket-provider";
 import { StepTracker } from "../cli-ui";
-import { retrieveFreshCompilationArtifact, toAsyncResult } from "../utils";
+import { retrieveFreshCompilationArtifact } from "../utils/artifact-parsing";
+import { toAsyncResult } from "../utils/result";
 import { CliError } from "./error";
 
 import crypto from "crypto";

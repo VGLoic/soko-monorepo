@@ -23,7 +23,7 @@ import {
   pull,
   push,
 } from "./cli-client/index";
-import { LOG_COLORS } from "./utils";
+import { LOG_COLORS } from "./utils/colors";
 
 export { type SokoHardhatUserConfig };
 

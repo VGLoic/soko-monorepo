@@ -4,36 +4,8 @@ import { z } from "zod";
 import { keccak256 } from "@ethersproject/keccak256";
 import { toUtf8Bytes } from "@ethersproject/strings";
 import { styleText } from "node:util";
-
-export function toAsyncResult<T, TError = Error>(
-  promise: Promise<T>,
-  opts: {
-    debug?: boolean;
-  } = {},
-): Promise<{ success: true; value: T } | { success: false; error: TError }> {
-  return promise
-    .then((value) => ({ success: true as const, value }))
-    .catch((error) => {
-      if (opts.debug) {
-        console.error(
-          styleText(
-            LOG_COLORS.error,
-            error instanceof Error
-              ? error.stack || error.message
-              : String(error),
-          ),
-        );
-      }
-      return { success: false as const, error };
-    });
-}
-
-export const LOG_COLORS = {
-  log: "cyan",
-  success: "green",
-  error: "red",
-  warn: "yellow",
-} as const;
+import { LOG_COLORS } from "./colors";
+import { toAsyncResult } from "./result";
 
 const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 type Literal = z.infer<typeof literalSchema>;

@@ -5,9 +5,9 @@ import { LocalStorage } from "../local-storage";
 import {
   ZBuildInfo,
   type CompilerOutputContract,
-  toAsyncResult,
   retrieveFreshCompilationArtifact,
-} from "../utils";
+} from "../utils/artifact-parsing";
+import { toAsyncResult } from "../utils/result";
 import { CliError } from "./error";
 
 /**

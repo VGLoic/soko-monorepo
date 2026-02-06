@@ -1,5 +1,5 @@
 import { LocalStorage } from "../local-storage";
-import { toAsyncResult } from "../utils";
+import { toAsyncResult } from "../utils/result";
 import { CliError } from "./error";
 
 export type ListResult = Array<ArtifactItem>;
