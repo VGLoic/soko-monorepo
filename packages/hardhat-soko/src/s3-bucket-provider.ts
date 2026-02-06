@@ -11,17 +11,22 @@ import { AssumeRoleCommand, STSClient } from "@aws-sdk/client-sts";
 import { NodeJsClient } from "@smithy/types";
 import { styleText } from "node:util";
 import { LOG_COLORS } from "./utils/colors";
+import { SokoArtifact } from "./utils/artifacts-schemas/soko-v0";
+import fs from "fs/promises";
 
 export interface StorageProvider {
   listTags(project: string): Promise<string[]>;
   listIds(project: string): Promise<string[]>;
   hasArtifactByTag(project: string, tag: string): Promise<boolean>;
-  hasArtifactById(project: string, tag: string): Promise<boolean>;
+  hasArtifactById(project: string, id: string): Promise<boolean>;
   uploadArtifact(
     project: string,
-    id: string,
+    artifact: SokoArtifact,
     tag: string | undefined,
-    content: string,
+    originalContentPaths: {
+      buildInfoPath: string;
+      additionalArtifactsPaths: string[];
+    },
   ): Promise<void>;
   downloadArtifactById(project: string, id: string): Promise<Stream>;
   downloadArtifactByTag(project: string, tag: string): Promise<Stream>;
@@ -168,10 +173,12 @@ export class S3BucketProvider implements StorageProvider {
     for (const content of contents) {
       const key = content.Key;
       if (!key) continue;
-      const id = key
-        .replace(`${this.rootPath}/${project}/ids/`, "")
-        .replace(".json", "");
-      ids.push(id);
+      // Consider only .json files under the "ids" prefix, we ignore any other subfolders or files (e.g. original content files)
+      const relativeKey = key.replace(`${this.rootPath}/${project}/ids/`, "");
+      if (relativeKey.endsWith(".json") && !relativeKey.includes("/")) {
+        const id = relativeKey.replace(".json", "");
+        ids.push(id);
+      }
     }
     return ids;
   }
@@ -234,17 +241,20 @@ export class S3BucketProvider implements StorageProvider {
 
   public async uploadArtifact(
     project: string,
-    id: string,
+    artifact: SokoArtifact,
     tag: string | undefined,
-    content: string,
+    originalContentPaths: {
+      buildInfoPath: string;
+      additionalArtifactsPaths: string[];
+    },
   ): Promise<void> {
     const client = await this.getClient();
-    const idKey = `${this.rootPath}/${project}/ids/${id}.json`;
+    const idKey = `${this.rootPath}/${project}/ids/${artifact.id}.json`;
 
     const putIdCommand = new PutObjectCommand({
       Bucket: this.config.bucketName,
       Key: idKey,
-      Body: content,
+      Body: JSON.stringify(artifact),
     });
     await client.send(putIdCommand);
 
@@ -255,6 +265,48 @@ export class S3BucketProvider implements StorageProvider {
         CopySource: `${this.config.bucketName}/${idKey}`,
       });
       await client.send(copyCommand);
+    }
+
+    // Upload original content files as well, using the artifact ID as reference
+    // These files are stored under `${this.rootPath}/${project}/ids/${artifact.id}/original-content/` prefix, so they don't interfere with the main artifact JSON file and can be easily retrieved when downloading the artifact
+    // We start with the build info file
+    const buildInfoContent = await fs.readFile(
+      originalContentPaths.buildInfoPath,
+    );
+    let sanitizedBuildInfoPath = originalContentPaths.buildInfoPath;
+    // We remove any leading `/` or `./` from the path to avoid creating unnecessary folders in the storage and to ensure the key is valid
+    if (sanitizedBuildInfoPath.startsWith("/")) {
+      sanitizedBuildInfoPath = sanitizedBuildInfoPath.substring(1);
+    }
+    if (sanitizedBuildInfoPath.startsWith("./")) {
+      sanitizedBuildInfoPath = sanitizedBuildInfoPath.substring(2);
+    }
+    const putBuildInfoCommand = new PutObjectCommand({
+      Bucket: this.config.bucketName,
+      Key: `${this.rootPath}/${project}/ids/${artifact.id}/original-content/${sanitizedBuildInfoPath}`,
+      Body: buildInfoContent,
+    });
+    await client.send(putBuildInfoCommand);
+    // Then we upload the additional artifact files (e.g. metadata files for forge)
+    // The key is `${this.rootPath}/${project}/ids/${artifact.id}/original-content/${sanitizedPath}`
+    for (const additionalArtifactPath of originalContentPaths.additionalArtifactsPaths) {
+      const additionalArtifactContent = await fs.readFile(
+        additionalArtifactPath,
+      );
+      let sanitizedPath = additionalArtifactPath;
+      // We remove any leading `/` or `./` from the path to avoid creating unnecessary folders in the storage and to ensure the key is valid
+      if (sanitizedPath.startsWith("/")) {
+        sanitizedPath = sanitizedPath.substring(1);
+      }
+      if (sanitizedPath.startsWith("./")) {
+        sanitizedPath = sanitizedPath.substring(2);
+      }
+      const putAdditionalArtifactCommand = new PutObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: `${this.rootPath}/${project}/ids/${artifact.id}/original-content/${sanitizedPath}`,
+        Body: additionalArtifactContent,
+      });
+      await client.send(putAdditionalArtifactCommand);
     }
   }
 

@@ -78,7 +78,7 @@ describe("Push-Pull E2E Tests", () => {
     const originalContent = await fs.readFile(artifactPath, "utf-8");
     const originalJson = JSON.parse(originalContent) as { id: string };
 
-    expect(localArtifact.id).toBe(originalJson.id);
+    expect(localArtifact.origin.id).toBe(originalJson.id);
   });
 
   test("push artifact [Foundry Counter] without tag → pull by ID", async () => {
@@ -131,7 +131,7 @@ describe("Push-Pull E2E Tests", () => {
     const originalContent = await fs.readFile(artifactPath, "utf-8");
     const originalJson = JSON.parse(originalContent) as { id: string };
 
-    expect(localArtifact.id).toBe(originalJson.id);
+    expect(localArtifact.origin.id).toBe(originalJson.id);
   });
 
   test("push artifact with tag → pull by tag", async () => {

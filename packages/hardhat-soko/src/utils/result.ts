@@ -16,3 +16,20 @@ export function toAsyncResult<T, TError = Error>(
       return { success: false as const, error };
     });
 }
+
+export function toResult<T, TError = Error>(
+  fn: () => T,
+  opts: {
+    debug?: boolean;
+  } = {},
+): { success: true; value: T } | { success: false; error: TError } {
+  try {
+    const value = fn();
+    return { success: true, value };
+  } catch (error) {
+    if (opts.debug) {
+      console.error(styleText(LOG_COLORS.error, "[Debug error] - "), error);
+    }
+    return { success: false as const, error: error as TError };
+  }
+}

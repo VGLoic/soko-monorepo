@@ -91,6 +91,15 @@ export async function pull(
     idsToDownload = remoteIds;
   }
 
+  if (opts.debug) {
+    console.debug("");
+    console.debug(`[DEBUG] Remote tags: ${remoteTags.join(", ")}`);
+    console.debug(`[DEBUG] Remote IDs: ${remoteIds.join(", ")}`);
+    console.debug(`[DEBUG] Tags to download: ${tagsToDownload.join(", ")}`);
+    console.debug(`[DEBUG] IDs to download: ${idsToDownload.join(", ")}`);
+    console.debug("");
+  }
+
   // Step 3: Check local artifacts
   steps.start("Checking local artifacts...");
   let filteredTagsToDownload: string[] = [];

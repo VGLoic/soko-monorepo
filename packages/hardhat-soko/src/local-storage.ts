@@ -1,8 +1,10 @@
 import fs from "fs/promises";
 import { Stream } from "stream";
-import { ZBuildInfo } from "./utils/artifact-parsing";
-import { z } from "zod";
 import crypto from "crypto";
+import {
+  SokoArtifact,
+  SokoArtifactSchema,
+} from "./utils/artifacts-schemas/soko-v0";
 
 /**
  * Local storage implementation for storing artifacts on the local filesystem.
@@ -150,13 +152,13 @@ export class LocalStorage {
   public async retrieveArtifactByTag(
     project: string,
     tag: string,
-  ): Promise<z.infer<typeof ZBuildInfo>> {
+  ): Promise<SokoArtifact> {
     const artifactContent = await fs.readFile(
       `${this.rootPath}/${project}/tags/${tag}.json`,
       "utf-8",
     );
     const rawArtifact = JSON.parse(artifactContent);
-    return ZBuildInfo.passthrough().parse(rawArtifact);
+    return SokoArtifactSchema.parse(rawArtifact);
   }
 
   /**
@@ -168,13 +170,13 @@ export class LocalStorage {
   public async retrieveArtifactById(
     project: string,
     id: string,
-  ): Promise<z.infer<typeof ZBuildInfo>> {
+  ): Promise<SokoArtifact> {
     const artifactContent = await fs.readFile(
       `${this.rootPath}/${project}/ids/${id}.json`,
       "utf-8",
     );
     const rawArtifact = JSON.parse(artifactContent);
-    return ZBuildInfo.passthrough().parse(rawArtifact);
+    return SokoArtifactSchema.parse(rawArtifact);
   }
 
   /**

@@ -1,1 +1,5 @@
-{"id":"74aa2008ae01a0ef","source_id_to_path":{"0":"src/Counter.sol"},"language":"Solidity"}
+{
+  "id": "74aa2008ae01a0ef",
+  "source_id_to_path": { "0": "src/Counter.sol" },
+  "language": "Solidity"
+}

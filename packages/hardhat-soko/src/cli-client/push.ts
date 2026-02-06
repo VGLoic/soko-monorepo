@@ -1,10 +1,24 @@
 import { StorageProvider } from "../s3-bucket-provider";
 import { StepTracker } from "../cli-ui";
-import { retrieveFreshCompilationArtifact } from "../utils/artifact-parsing";
 import { toAsyncResult } from "../utils/result";
 import { CliError } from "./error";
+import { lookForBuildInfoJsonFile } from "./helpers/look-for-build-info-json-file";
+import { mapBuildInfoToSokoArtifact } from "./helpers/map-build-info-to-soko-artifact";
+import { HARDHAT_COMPILER_OUTPUT_FORMAT } from "@/utils/artifacts-schemas/hardhat-v2";
+import {
+  FORGE_COMPILER_DEFAULT_OUTPUT_FORMAT,
+  FORGE_COMPILER_OUTPUT_WITH_BUILD_INFO_OPTION_FORMAT,
+} from "@/utils/artifacts-schemas/forge-v1";
+import { SokoArtifact } from "@/utils/artifacts-schemas/soko-v0";
 
-import crypto from "crypto";
+const PARSING_SUCCESS_TEXT: Record<SokoArtifact["origin"]["_format"], string> =
+  {
+    [HARDHAT_COMPILER_OUTPUT_FORMAT]: "Hardhat compilation artifact detected",
+    [FORGE_COMPILER_OUTPUT_WITH_BUILD_INFO_OPTION_FORMAT]:
+      "Forge compilation artifact detected",
+    [FORGE_COMPILER_DEFAULT_OUTPUT_FORMAT]:
+      "Forge compilation artifact detected",
+  };
 
 /**
  * Run the push command of the CLI client, it consists of three steps:
@@ -29,32 +43,34 @@ export async function push(
   storageProvider: StorageProvider,
   opts: { force: boolean; debug: boolean },
 ): Promise<string> {
-  const steps = new StepTracker(3);
+  const steps = new StepTracker(4);
 
-  // Step 1: Read compilation artifact
-  steps.start("Reading compilation artifact...");
-  const freshBuildInfoResult = await toAsyncResult(
-    retrieveFreshCompilationArtifact(artifactPath),
-    {
-      debug: opts.debug,
-    },
+  // Step 1: Look for compilation artifact
+  steps.start("Looking for compilation artifact...");
+  const buildInfoPathResult = await toAsyncResult(
+    lookForBuildInfoJsonFile(artifactPath, opts.debug),
   );
-  if (!freshBuildInfoResult.success) {
-    steps.fail("Failed to read compilation artifact");
-    throw new CliError(
-      "Error retrieving the compilation artifact, please check if the path contains a valid compilation artifact. Run with debug mode for more info",
-    );
+  if (!buildInfoPathResult.success) {
+    steps.fail("Failed to find compilation artifact");
+    // @dev the lookForBuildInfoJsonFile function throws a CliError with a user-friendly message, so we can directly re-throw it here without wrapping it in another error or modifying the message
+    throw buildInfoPathResult.error;
   }
+  steps.succeed(`Compilation artifact found at ${buildInfoPathResult.value}`);
 
-  if (freshBuildInfoResult.value.status === "error") {
-    steps.fail("Failed to read compilation artifact");
-    throw new CliError(
-      `Error retrieving the compilation artifact. ${freshBuildInfoResult.value.reason}`,
-    );
+  // Step 2: Parse the compilation artifact, mapping it to the Soko format
+  steps.start("Analyzing compilation artifact...");
+  const sokoArtifactParsingResult = await toAsyncResult(
+    mapBuildInfoToSokoArtifact(buildInfoPathResult.value, opts.debug),
+  );
+  if (!sokoArtifactParsingResult.success) {
+    steps.fail("Unable to handle the provided compilation artifact");
+    // @dev the mapBuildInfoToSokoArtifact function throws an Error with a user-friendly message, so we can directly re-throw it here without wrapping it in another error or modifying the message
+    throw sokoArtifactParsingResult.error;
   }
-  steps.succeed("Compilation artifact read");
+  const sokoArtifact = sokoArtifactParsingResult.value.artifact;
+  steps.succeed(PARSING_SUCCESS_TEXT[sokoArtifact.origin._format]);
 
-  // Step 2: Check if tag exists
+  // Step 3: Check if tag exists
   steps.start("Checking if tag exists...");
   if (!tag) {
     steps.succeed("No tag provided, skipping tag existence check");
@@ -83,34 +99,24 @@ export async function push(
     }
   }
 
-  const artifactId = deriveArtifactSokoId(freshBuildInfoResult.value.content);
-
-  // Step 3: Upload artifact
+  // Step 4: Upload artifact
   steps.start("Uploading artifact...");
   const pushResult = await toAsyncResult(
-    storageProvider.uploadArtifact(
-      project,
-      artifactId,
-      tag,
-      freshBuildInfoResult.value.content,
-    ),
+    storageProvider.uploadArtifact(project, sokoArtifact, tag, {
+      buildInfoPath: buildInfoPathResult.value,
+      additionalArtifactsPaths:
+        sokoArtifactParsingResult.value.additionalArtifactsPaths,
+    }),
     { debug: opts.debug },
   );
 
   if (!pushResult.success) {
     steps.fail("Failed to upload artifact");
     throw new CliError(
-      `Error pushing the artifact "${project}:${tag || artifactId}" to the storage, please check the storage configuration or run with debug mode for more info`,
+      `Error pushing the artifact "${project}:${tag || sokoArtifact.id}" to the storage, please check the storage configuration or run with debug mode for more info`,
     );
   }
   steps.succeed("Artifact uploaded successfully");
 
-  return artifactId;
-}
-
-function deriveArtifactSokoId(artifactContent: string): string {
-  const hash = crypto.createHash("sha256");
-  hash.update(artifactContent);
-  const checksum = hash.digest("hex");
-  return checksum.substring(0, 12);
+  return sokoArtifact.id;
 }
