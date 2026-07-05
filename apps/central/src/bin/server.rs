@@ -72,8 +72,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
     let users_job_processor = users::notifier::job_processor::UsersJobProcessor;
-    let users_repository = users::repository::PsqlAccountsRepository::new(pool);
-    let users_service = users::service::UsersServiceImpl::new(users_repository, users_notifier);
+    let auth_repository = users::repository::PsqlAuthRepository::new(pool);
+    let auth_service = users::service::AuthServiceImpl::new(auth_repository, users_notifier);
 
     let job_worker_queue = job_queue.clone();
     let job_worker_token = cancellation_token.clone();
@@ -102,7 +102,7 @@ async fn main() -> Result<(), anyhow::Error> {
         listener.local_addr().unwrap()
     );
 
-    if let Err(e) = serve_http_server(listener, users_service).await {
+    if let Err(e) = serve_http_server(listener, auth_service).await {
         error!("Error during http server graceful shutdown: {e:?}");
     }
 

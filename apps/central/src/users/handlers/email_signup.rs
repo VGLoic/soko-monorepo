@@ -29,7 +29,7 @@ pub async fn handle_signup_email(
 ) -> Result<(StatusCode, Json<UserResponse>), ApiError> {
     let request = EmailSignupRequest::new(body.email, body.handle, body.password)?;
 
-    let (user, _auth_credential) = state.users_service.signup_with_email(request).await?;
+    let (user, _auth_credential) = state.auth_service.signup_with_email(request).await?;
 
     Ok((StatusCode::CREATED, Json(user.into())))
 }

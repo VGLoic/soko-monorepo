@@ -60,8 +60,8 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
 
     let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
     let users_job_processor = FakeUserJobProcessor::default();
-    let users_repository = users::repository::PsqlAccountsRepository::new(pool);
-    let users_service = users::service::UsersServiceImpl::new(users_repository, users_notifier);
+    let auth_repository = users::repository::PsqlAuthRepository::new(pool);
+    let auth_service = users::service::AuthServiceImpl::new(auth_repository, users_notifier);
 
     let job_worker_queue = job_queue.clone();
     let job_worker_users_job_processor = users_job_processor.clone();
@@ -89,7 +89,7 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
     );
 
     tokio::spawn(async move {
-        if let Err(e) = serve_http_server(listener, users_service).await {
+        if let Err(e) = serve_http_server(listener, auth_service).await {
             error!("Error during http server graceful shutdown: {e:?}");
         }
     });

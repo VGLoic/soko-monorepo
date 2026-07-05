@@ -1,4 +1,4 @@
-use crate::{router::app_router, users::service::UsersService};
+use crate::{router::app_router, users::service::AuthService};
 use axum::{
     body::Body,
     extract::{MatchedPath, Request},
@@ -18,11 +18,11 @@ const TIMEOUT_SECONDS: u64 = 10;
 
 pub async fn serve_http_server(
     tcp_listener: TcpListener,
-    users_service: impl UsersService,
+    auth_service: impl AuthService,
 ) -> Result<(), anyhow::Error> {
     let x_request_id = HeaderName::from_static(REQUEST_ID_HEADER);
 
-    let app = app_router(users_service).layer((
+    let app = app_router(auth_service).layer((
         // Set `x-request-id` header for every request
         SetRequestIdLayer::new(x_request_id.clone(), MakeRequestUuid),
         // Log request and response

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::users::{auth_router, service::UsersService};
+use crate::users::{auth_router, service::AuthService};
 use axum::{
     Json, Router,
     http::StatusCode,
@@ -10,9 +10,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-pub fn app_router(users_service: impl UsersService) -> Router {
-    let users_service = Arc::new(users_service);
-    let state = AppState { users_service };
+pub fn app_router(auth_service: impl AuthService) -> Router {
+    let auth_service = Arc::new(auth_service);
+    let state = AppState { auth_service };
     Router::new()
         .route("/health", get(get_healthcheck))
         .nest("/auth", auth_router::auth_router())
@@ -22,7 +22,7 @@ pub fn app_router(users_service: impl UsersService) -> Router {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub users_service: Arc<dyn UsersService>,
+    pub auth_service: Arc<dyn AuthService>,
 }
 
 #[derive(Serialize, Deserialize)]

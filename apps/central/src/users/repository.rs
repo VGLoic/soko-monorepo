@@ -5,9 +5,9 @@ use crate::users::models::{
 };
 use sqlx::{Pool, Postgres};
 
-/// Repository trait for user-related operations
+/// Repository trait for auth-related operations
 #[async_trait::async_trait]
-pub trait UsersRepository: Send + Sync + 'static {
+pub trait AuthRepository: Send + Sync + 'static {
     /// Registers a new user with the provided email, handle and password hash.
     /// - A new user is created with the provided email and handle, the email is marked as not verified.
     /// - An `auth_credential` is created for the user with the provided password hash.
@@ -22,11 +22,11 @@ pub trait UsersRepository: Send + Sync + 'static {
 }
 
 #[derive(Clone)]
-pub struct PsqlAccountsRepository {
+pub struct PsqlAuthRepository {
     pool: Pool<Postgres>,
 }
 
-impl PsqlAccountsRepository {
+impl PsqlAuthRepository {
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -38,7 +38,7 @@ const UNIQUE_EMAIL_CONSTRAINT_NAME: &str = "unique_email";
 const UNIQUE_HANDLE_CONSTRAINT_NAME: &str = "unique_handle";
 
 #[async_trait::async_trait]
-impl UsersRepository for PsqlAccountsRepository {
+impl AuthRepository for PsqlAuthRepository {
     async fn signup_with_email(
         &self,
         request: EmailSignupRequest,

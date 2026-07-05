@@ -5,12 +5,12 @@ use crate::users::{
         user::User,
     },
     notifier::UsersNotifier,
-    repository::UsersRepository,
+    repository::AuthRepository,
 };
 use tracing::error;
 
 #[async_trait::async_trait]
-pub trait UsersService: Send + Sync + 'static {
+pub trait AuthService: Send + Sync + 'static {
     /// Registers a new user with the provided email, handle and password hash.
     /// - A new user is created with the provided email and handle, the email is marked as not verified.
     /// - An `auth_credential` is created for the user with the provided password hash.
@@ -24,12 +24,12 @@ pub trait UsersService: Send + Sync + 'static {
     ) -> Result<(User, AuthCredential), EmailSignupError>;
 }
 
-pub struct UsersServiceImpl<R: UsersRepository, N: UsersNotifier> {
+pub struct AuthServiceImpl<R: AuthRepository, N: UsersNotifier> {
     repository: R,
     notifier: N,
 }
 
-impl<R: UsersRepository, N: UsersNotifier> UsersServiceImpl<R, N> {
+impl<R: AuthRepository, N: UsersNotifier> AuthServiceImpl<R, N> {
     pub fn new(repository: R, notifier: N) -> Self {
         Self {
             repository,
@@ -39,7 +39,7 @@ impl<R: UsersRepository, N: UsersNotifier> UsersServiceImpl<R, N> {
 }
 
 #[async_trait::async_trait]
-impl<R: UsersRepository, N: UsersNotifier> UsersService for UsersServiceImpl<R, N> {
+impl<R: AuthRepository, N: UsersNotifier> AuthService for AuthServiceImpl<R, N> {
     async fn signup_with_email(
         &self,
         request: EmailSignupRequest,
