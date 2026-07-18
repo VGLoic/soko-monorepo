@@ -1,4 +1,5 @@
 pub mod config;
+pub mod externalcom;
 pub mod httpserver;
 pub mod jobs;
 pub mod newtypes;

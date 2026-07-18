@@ -1,5 +1,5 @@
 use ethoko_central::{
-    config::Config,
+    config::{Config, OtpConfig},
     httpserver::serve_http_server,
     jobs::{memoryqueue::InMemoryQueue, processor::JobProcessor, rootprocessor::RootProcessor},
     users::{self, notifier::USERS_JOB_TOPIC},
@@ -9,15 +9,15 @@ use std::{collections::HashMap, net::SocketAddr, time::Duration};
 use tracing::{Level, error, level_filters::LevelFilter};
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::common::{manual_worker::ManualWorker, users_processor::FakeUserJobProcessor};
+use crate::common::{fake_email_service::FakeEmailService, manual_worker::ManualWorker};
+mod fake_email_service;
 mod manual_worker;
-mod users_processor;
 
 #[allow(dead_code)]
 pub struct InstanceState {
     pub reqwest_client: reqwest::Client,
     pub server_url: String,
-    pub users_processor: FakeUserJobProcessor,
+    pub email_service: FakeEmailService,
     pub job_worker: ManualWorker<InMemoryQueue, RootProcessor>,
 }
 
@@ -26,6 +26,10 @@ pub fn default_test_config() -> Config {
         port: 0,
         database_url: "postgresql://admin:admin@localhost:5433/central".into(),
         log_level: Level::INFO,
+        otp_config: OtpConfig {
+            ttl_seconds: 10 * 60,
+            cooldown_seconds: 60,
+        },
     }
 }
 
@@ -58,10 +62,17 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
 
     let job_queue = InMemoryQueue::new(2);
 
+    let email_service = FakeEmailService::default();
+
     let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
-    let users_job_processor = FakeUserJobProcessor::default();
     let auth_repository = users::repository::PsqlAuthRepository::new(pool);
-    let auth_service = users::service::AuthServiceImpl::new(auth_repository, users_notifier);
+    let auth_service =
+        users::service::AuthServiceImpl::new(auth_repository.clone(), users_notifier);
+    let users_job_processor = users::notifier::job_processor::UsersJobProcessor::new(
+        auth_repository.clone(),
+        email_service.clone(),
+        config.otp_config.clone(),
+    );
 
     let job_worker_queue = job_queue.clone();
     let job_worker_users_job_processor = users_job_processor.clone();
@@ -97,7 +108,7 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
     Ok(InstanceState {
         server_url,
         job_worker,
-        users_processor: users_job_processor,
+        email_service,
         reqwest_client: reqwest::Client::new(),
     })
 }

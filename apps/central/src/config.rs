@@ -13,6 +13,16 @@ pub struct Config {
     pub database_url: String,
     /// Application log level, has priority over `RUST_LOG` environment variable
     pub log_level: Level,
+    /// OTP configuration
+    pub otp_config: OtpConfig,
+}
+
+#[derive(Clone, Debug)]
+pub struct OtpConfig {
+    /// Time to live in seconds for OTP
+    pub ttl_seconds: u16,
+    /// Cooldown between two OTP for a single user in seconds
+    pub cooldown_seconds: u16,
 }
 
 impl Config {
@@ -47,10 +57,16 @@ impl Config {
             return Err(errors);
         }
 
+        let otp_config = OtpConfig {
+            ttl_seconds: 10 * 60,
+            cooldown_seconds: 60,
+        };
+
         Ok(Config {
             port,
             database_url,
             log_level,
+            otp_config,
         })
     }
 }

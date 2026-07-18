@@ -1,6 +1,7 @@
 use dotenvy::dotenv;
 use ethoko_central::{
     config::Config,
+    externalcom::email::DummyEmailSender,
     httpserver::serve_http_server,
     jobs::{self, processor::JobProcessor},
     users::{self, notifier::USERS_JOB_TOPIC},
@@ -70,10 +71,17 @@ async fn main() -> Result<(), anyhow::Error> {
         info!("Gracefully exiting job queue handle")
     });
 
-    let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
-    let users_job_processor = users::notifier::job_processor::UsersJobProcessor;
+    let email_service = DummyEmailSender;
+
     let auth_repository = users::repository::PsqlAuthRepository::new(pool);
-    let auth_service = users::service::AuthServiceImpl::new(auth_repository, users_notifier);
+    let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
+    let auth_service =
+        users::service::AuthServiceImpl::new(auth_repository.clone(), users_notifier);
+    let users_job_processor = users::notifier::job_processor::UsersJobProcessor::new(
+        auth_repository.clone(),
+        email_service,
+        config.otp_config.clone(),
+    );
 
     let job_worker_queue = job_queue.clone();
     let job_worker_token = cancellation_token.clone();

@@ -1,5 +1,5 @@
 use chrono::Utc;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
     jobs::{
@@ -8,7 +8,7 @@ use crate::{
     },
     users::{
         models::{auth_credential::AuthCredential, email_signup::EmailSignupError, user::User},
-        notifier::jobs::{DummyJobPayload, UsersJob},
+        notifier::jobs::{SendEmailVerificationOtpPayload, UsersJob},
     },
 };
 
@@ -48,17 +48,22 @@ impl<Q: Queue> UsersNotifier for UsersNotifierImpl<Q> {
         user: &User,
         _auth_credential: &AuthCredential,
     ) -> Result<(), EmailSignupError> {
-        info!(
+        debug!(
             "sending notification for user signed up with email: {}",
             user.email
         );
         let job = JobRequest::new(
             USERS_JOB_TOPIC.to_string(),
-            UsersJob::DummyJob(DummyJobPayload::new(user)),
+            UsersJob::SendEmailVerificationOtp(SendEmailVerificationOtpPayload::new(user)),
         )?
         .with_max_retries(3)
         .with_scheduled_at(Utc::now());
         self.queue.enqueue(job).await?;
+
+        info!(
+            "sent notification for user signed up with email: {}",
+            user.email
+        );
         Ok(())
     }
 }

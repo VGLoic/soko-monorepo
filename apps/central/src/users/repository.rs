@@ -1,8 +1,14 @@
-use crate::users::models::{
-    auth_credential::AuthCredential,
-    email_signup::{EmailSignupError, EmailSignupRequest},
-    user::User,
+use crate::{
+    config::OtpConfig,
+    users::models::{
+        auth_credential::AuthCredential,
+        email_signup::{EmailSignupError, EmailSignupRequest},
+        otp_request::OtpRequest,
+        send_email_verification_otp::SendEmailVerificationOtpError,
+        user::User,
+    },
 };
+use chrono::{TimeDelta, Utc};
 use sqlx::{Pool, Postgres};
 
 /// Repository trait for auth-related operations
@@ -19,6 +25,20 @@ pub trait AuthRepository: Send + Sync + 'static {
         &self,
         request: EmailSignupRequest,
     ) -> Result<(User, AuthCredential), EmailSignupError>;
+
+    /// Registers a new email verification OTP for the user.
+    /// - A new OTP is created for the user with the provided OTP hash.
+    /// # Errors
+    /// * `SendEmailVerificationOtpError::NotFound` if the user is not found.
+    /// * `SendEmailVerificationOtpError::EmailAlreadyVerified` if the user's email is already verified.
+    /// * `SendEmailVerificationOtpError::CooldownNotElapsed` if the cooldown period has not elapsed yet for requesting a new verification code.
+    /// * `SendEmailVerificationOtpError::Unknown` for any other errors that may occur during the process.
+    async fn register_email_verification_otp(
+        &self,
+        user_id: uuid::Uuid,
+        otp_hash: [u8; 32],
+        otp_config: &OtpConfig,
+    ) -> Result<OtpRequest, SendEmailVerificationOtpError>;
 }
 
 #[derive(Clone)]
@@ -109,5 +129,105 @@ impl AuthRepository for PsqlAuthRepository {
             .map_err(|e| anyhow::anyhow!(e).context("failed to commit transaction"))?;
 
         Ok((user, auth_credential))
+    }
+
+    async fn register_email_verification_otp(
+        &self,
+        user_id: uuid::Uuid,
+        otp_hash: [u8; 32],
+        otp_config: &OtpConfig,
+    ) -> Result<OtpRequest, SendEmailVerificationOtpError> {
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| anyhow::anyhow!(e).context("failed to start transaction"))?;
+
+        let user = sqlx::query_as::<_, User>(
+            r#"
+            SELECT
+                id,
+                email,
+                handle,
+                email_verified,
+                created_at,
+                updated_at
+            FROM "ethoko_user"
+            WHERE id = $1
+            "#,
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|e| anyhow::anyhow!(e).context("failed to fetch user"))?;
+
+        let user = match user {
+            Some(user) => user,
+            None => return Err(SendEmailVerificationOtpError::NotFound),
+        };
+        if user.email_verified {
+            return Err(SendEmailVerificationOtpError::EmailAlreadyVerified);
+        }
+
+        let last_otp_request = sqlx::query_as::<_, OtpRequest>(
+            r#"
+            SELECT
+                id,
+                user_id,
+                otp_hash,
+                created_at,
+                expires_at
+            FROM otp_request
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|e| anyhow::anyhow!(e).context("failed to fetch last otp request"))?;
+
+        if let Some(otp_request) = last_otp_request {
+            let cooldown_limit = otp_request
+                .created_at
+                .checked_add_signed(TimeDelta::seconds(otp_config.cooldown_seconds.into()))
+                .ok_or(anyhow::anyhow!("failed to compute cooldown limit"))?;
+            if Utc::now() < cooldown_limit {
+                return Err(SendEmailVerificationOtpError::CooldownNotElapsed);
+            }
+        }
+
+        let expires_at = Utc::now()
+            .checked_add_signed(TimeDelta::seconds(otp_config.ttl_seconds.into()))
+            .ok_or(anyhow::anyhow!("failed to compute expires_at"))?;
+        let otp_request = sqlx::query_as::<_, OtpRequest>(
+            r#"
+            INSERT INTO otp_request (
+                user_id,
+                otp_hash,
+                expires_at
+            ) VALUES ($1, $2, $3, $4)
+            RETURNING
+                id,
+                user_id,
+                otp_hash,
+                created_at,
+                expires_at
+            "#,
+        )
+        .bind(user_id)
+        .bind(otp_hash)
+        .bind(expires_at)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|e| anyhow::anyhow!(e).context("failed to create otp request"))?;
+
+        transaction
+            .commit()
+            .await
+            .map_err(|e| anyhow::anyhow!(e).context("failed to commit transaction"))?;
+
+        Ok(otp_request)
     }
 }

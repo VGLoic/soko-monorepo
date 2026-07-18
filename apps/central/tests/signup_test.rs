@@ -36,7 +36,7 @@ async fn test_signup() {
 
     instance_state.job_worker.consume_jobs().await.unwrap();
 
-    assert!(instance_state.users_processor.has_email(&email))
+    assert!(instance_state.email_service.has_sent_email_to(&email))
 }
 
 #[tokio::test]

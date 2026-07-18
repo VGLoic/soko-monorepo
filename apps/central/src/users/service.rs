@@ -7,7 +7,7 @@ use crate::users::{
     notifier::UsersNotifier,
     repository::AuthRepository,
 };
-use tracing::error;
+use tracing::{error, info};
 
 #[async_trait::async_trait]
 pub trait AuthService: Send + Sync + 'static {
@@ -24,6 +24,7 @@ pub trait AuthService: Send + Sync + 'static {
     ) -> Result<(User, AuthCredential), EmailSignupError>;
 }
 
+#[derive(Clone)]
 pub struct AuthServiceImpl<R: AuthRepository, N: UsersNotifier> {
     repository: R,
     notifier: N,
@@ -53,6 +54,11 @@ impl<R: AuthRepository, N: UsersNotifier> AuthService for AuthServiceImpl<R, N> 
         {
             error!("Error in user_signed_up_with_email notification: {:?}", e);
         }
+
+        info!(
+            "New user with ID {} signed up with email: {} and handle: {}",
+            user.id, user.email, user.handle
+        );
 
         Ok((user, auth_credential))
     }
