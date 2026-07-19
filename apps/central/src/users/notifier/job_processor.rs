@@ -3,12 +3,13 @@ use crate::{
     externalcom::email::EmailService,
     jobs::{job::Job, processor::JobProcessor},
     users::{
+        models::send_email_verification_otp::SendEmailVerificationOtpError,
         notifier::jobs::{SendEmailVerificationOtpPayload, UsersJob},
         otp,
         repository::AuthRepository,
     },
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct UsersJobProcessor<R: AuthRepository, E: EmailService> {
@@ -64,9 +65,34 @@ impl<R: AuthRepository, E: EmailService> UsersJobProcessor<R, E> {
             .await
             .map_err(|e| e.context("failed to send email verification OTP"))?;
 
-        self.auth_repository
+        if let Err(e) = self
+            .auth_repository
             .register_email_verification_otp(payload.user_id, otp.hash(), &self.otp_config)
-            .await?;
+            .await
+        {
+            match e {
+                SendEmailVerificationOtpError::CooldownNotElapsed => {
+                    warn!(
+                        "An OTP was sent but failed to be registered in database because cooldown is not yet ellapsed"
+                    );
+                }
+                SendEmailVerificationOtpError::EmailAlreadyVerified => {
+                    warn!(
+                        "An OTP was sent but failed to be registered in database because email is already verified"
+                    );
+                }
+                SendEmailVerificationOtpError::NotFound => {
+                    warn!(
+                        "An OTP was sent but failed to be registered in database because user is not found"
+                    );
+                }
+                SendEmailVerificationOtpError::Unknown(err) => {
+                    return Err(
+                        err.context("failed to register email verification in database in job")
+                    );
+                }
+            }
+        };
 
         info!(
             "Email verification OTP sent to user with ID {}",
