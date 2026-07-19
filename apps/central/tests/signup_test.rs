@@ -33,6 +33,31 @@ async fn test_signup() {
     let response_body: users_response::UserResponse = response.json().await.unwrap();
     assert_eq!(response_body.email, email);
     assert_eq!(response_body.handle, handle);
+}
+
+#[tokio::test]
+async fn test_signup_trigger_otp_email_sending() {
+    let instance_state = setup_instance(&default_test_config()).await.unwrap();
+
+    let email = Faker.fake::<Email>();
+    let handle = Faker.fake::<Handle>();
+    let password = Faker.fake::<Password>();
+
+    let signup_body = SignupEmailBody {
+        email: email.to_string(),
+        handle: handle.to_string(),
+        password: password.as_str().to_owned(),
+    };
+    let _ = instance_state
+        .reqwest_client
+        .post(format!("{}/auth/signup/email", &instance_state.server_url))
+        .json(&signup_body)
+        .send()
+        .await
+        .unwrap()
+        .json::<users_response::UserResponse>()
+        .await
+        .unwrap();
 
     instance_state.job_worker.consume_jobs().await.unwrap();
 
