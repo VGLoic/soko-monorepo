@@ -3,6 +3,7 @@ use crate::users::{
         auth_credential::AuthCredential,
         email_signup::{EmailSignupError, EmailSignupRequest},
         user::User,
+        verify_email::{VerifyEmailError, VerifyEmailRequest},
     },
     notifier::UsersNotifier,
     repository::AuthRepository,
@@ -22,6 +23,16 @@ pub trait AuthService: Send + Sync + 'static {
         &self,
         request: EmailSignupRequest,
     ) -> Result<(User, AuthCredential), EmailSignupError>;
+
+    /// Verifies the email of a user with the provided OTP.
+    /// - If the OTP is valid and not expired, the user's email is marked as verified
+    /// # Errors
+    /// * `VerifyEmailError::EmailAlreadyVerified` if the email is already verified.
+    /// * `VerifyEmailError::InvalidOtp` if the provided OTP is invalid.
+    /// * `VerifyEmailError::OtpExpired` if the provided OTP has expired.
+    /// * `VerifyEmailError::NotFound` if the user with the provided email is not found.
+    /// * `VerifyEmailError::Unknown` for any other errors that may occur during the process.
+    async fn verify_email(&self, request: VerifyEmailRequest) -> Result<User, VerifyEmailError>;
 }
 
 #[derive(Clone)]
@@ -61,5 +72,20 @@ impl<R: AuthRepository, N: UsersNotifier> AuthService for AuthServiceImpl<R, N> 
         );
 
         Ok((user, auth_credential))
+    }
+
+    async fn verify_email(&self, request: VerifyEmailRequest) -> Result<User, VerifyEmailError> {
+        let user = self.repository.verify_email_by_otp(request).await?;
+
+        if let Err(e) = self.notifier.user_verified_email(&user).await {
+            error!("Error in user_verified_email notification: {:?}", e);
+        }
+
+        info!(
+            "User with ID {} verified their email: {}",
+            user.id, user.email
+        );
+
+        Ok(user)
     }
 }

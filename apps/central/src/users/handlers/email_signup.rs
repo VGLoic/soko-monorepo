@@ -5,23 +5,10 @@ use crate::{
         email_signup::{
             EmailSignupError, EmailSignupRequest, EmailSignupRequestError, SignupEmailBody,
         },
-        user::User,
         users_response::UserResponse,
     },
 };
 use axum::{Json, extract::State, http::StatusCode};
-
-impl From<User> for UserResponse {
-    fn from(user: User) -> Self {
-        UserResponse {
-            email: user.email,
-            handle: user.handle,
-            email_verified: user.email_verified,
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-        }
-    }
-}
 
 pub async fn handle_signup_email(
     State(state): State<AppState>,

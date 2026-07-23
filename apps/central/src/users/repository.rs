@@ -3,13 +3,14 @@ use crate::{
     users::models::{
         auth_credential::AuthCredential,
         email_signup::{EmailSignupError, EmailSignupRequest},
-        otp_request::OtpRequest,
+        otp_request::{OtpPurpose, OtpRequest},
         send_email_verification_otp::SendEmailVerificationOtpError,
         user::User,
+        verify_email::{VerifyEmailError, VerifyEmailRequest},
     },
 };
 use chrono::{TimeDelta, Utc};
-use sqlx::{Pool, Postgres};
+use sqlx::{Executor, Pool, Postgres};
 
 /// Repository trait for auth-related operations
 #[async_trait::async_trait]
@@ -39,6 +40,23 @@ pub trait AuthRepository: Send + Sync + 'static {
         otp_hash: [u8; 32],
         otp_config: &OtpConfig,
     ) -> Result<OtpRequest, SendEmailVerificationOtpError>;
+
+    /// Verifies the email of the user with the provided OTP hash.
+    /// - The user is fetched from the database using the provided user ID.
+    /// - The latest OTP request for the user is fetched from the database.
+    /// - If the OTP request is found and the provided OTP hash matches the stored OTP hash, the user's email is marked as verified.
+    /// - If the OTP request is not found, the provided OTP hash does not match the stored OTP hash, or the OTP request has expired, an appropriate error is returned.
+    /// - If the user's email is already verified, an error is returned
+    /// # Errors
+    /// * `VerifyEmailError::NotFound` if the user is not found
+    /// * `VerifyEmailError::InvalidOtp` if the provided OTP is invalid
+    /// * `VerifyEmailError::EmailAlreadyVerified` if the user's email is already verified
+    /// * `VerifyEmailError::OtpExpired` if the provided OTP has expired
+    /// * `VerifyEmailError::Unknown` for any other errors that may occur during the process.
+    async fn verify_email_by_otp(
+        &self,
+        verify_email_request: VerifyEmailRequest,
+    ) -> Result<User, VerifyEmailError>;
 }
 
 #[derive(Clone)]
@@ -175,6 +193,7 @@ impl AuthRepository for PsqlAuthRepository {
                 id,
                 user_id,
                 otp_hash,
+                purpose,
                 created_at,
                 expires_at
             FROM otp_request
@@ -206,18 +225,21 @@ impl AuthRepository for PsqlAuthRepository {
             INSERT INTO otp_request (
                 user_id,
                 otp_hash,
+                purpose,
                 expires_at
             ) VALUES ($1, $2, $3, $4)
             RETURNING
                 id,
                 user_id,
                 otp_hash,
+                purpose,
                 created_at,
                 expires_at
             "#,
         )
         .bind(user_id)
         .bind(otp_hash)
+        .bind(OtpPurpose::EmailVerification)
         .bind(expires_at)
         .fetch_one(&mut *transaction)
         .await
@@ -230,4 +252,127 @@ impl AuthRepository for PsqlAuthRepository {
 
         Ok(otp_request)
     }
+
+    async fn verify_email_by_otp(
+        &self,
+        verify_email_request: VerifyEmailRequest,
+    ) -> Result<User, VerifyEmailError> {
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| anyhow::anyhow!(e).context("failed to start transaction"))?;
+
+        let user = sqlx::query_as::<_, User>(
+            r#"
+            SELECT
+                id,
+                email,
+                handle,
+                email_verified,
+                created_at,
+                updated_at
+            FROM "ethoko_user"
+            WHERE email = $1
+            "#,
+        )
+        .bind(verify_email_request.email)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|e| anyhow::anyhow!(e).context("failed to fetch user"))?;
+
+        let user = match user {
+            Some(user) => user,
+            None => return Err(VerifyEmailError::NotFound),
+        };
+        if user.email_verified {
+            return Err(VerifyEmailError::EmailAlreadyVerified);
+        }
+
+        let otp_request = sqlx::query_as::<_, OtpRequest>(
+            r#"
+            SELECT
+                id,
+                user_id,
+                otp_hash,
+                purpose,
+                created_at,
+                expires_at
+            FROM otp_request
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(user.id)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|e| anyhow::anyhow!(e).context("failed to fetch last otp request"))?;
+
+        let otp_request = match otp_request {
+            Some(otp_request) => otp_request,
+            None => return Err(VerifyEmailError::InvalidOtp),
+        };
+
+        if Utc::now() > otp_request.expires_at {
+            return Err(VerifyEmailError::OtpExpired);
+        }
+
+        if let OtpPurpose::EmailVerification = otp_request.purpose {
+        } else {
+            return Err(VerifyEmailError::InvalidOtp);
+        }
+
+        if otp_request.otp_hash != verify_email_request.otp_hash {
+            return Err(VerifyEmailError::InvalidOtp);
+        }
+
+        sqlx::query(
+            r#"
+            UPDATE "ethoko_user"
+            SET email_verified = true
+            WHERE id = $1
+            "#,
+        )
+        .bind(user.id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|e| anyhow::anyhow!(e).context("failed to update user email_verified"))?;
+
+        let updated_user = get_user_by_id(user.id, &mut *transaction)
+            .await
+            .map_err(|e| anyhow::anyhow!(e).context("failed to fetch updated user"))?
+            .ok_or(anyhow::anyhow!("failed to fetch updated user"))?;
+
+        transaction
+            .commit()
+            .await
+            .map_err(|e| anyhow::anyhow!(e).context("failed to commit transaction"))?;
+
+        Ok(updated_user)
+    }
+}
+
+async fn get_user_by_id<'a, E: Executor<'a, Database = Postgres>>(
+    user_id: uuid::Uuid,
+    executor: E,
+) -> Result<Option<User>, sqlx::Error> {
+    let user = sqlx::query_as::<_, User>(
+        r#"
+        SELECT
+            id,
+            email,
+            handle,
+            email_verified,
+            created_at,
+            updated_at
+        FROM "ethoko_user"
+        WHERE id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(executor)
+    .await?;
+
+    Ok(user)
 }

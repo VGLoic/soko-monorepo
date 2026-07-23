@@ -1,4 +1,7 @@
-use crate::newtypes::{email::Email, handle::Handle};
+use crate::{
+    newtypes::{email::Email, handle::Handle},
+    users::models::user::User,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -9,4 +12,16 @@ pub struct UserResponse {
     pub email_verified: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<User> for UserResponse {
+    fn from(user: User) -> Self {
+        UserResponse {
+            email: user.email,
+            handle: user.handle,
+            email_verified: user.email_verified,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        }
+    }
 }

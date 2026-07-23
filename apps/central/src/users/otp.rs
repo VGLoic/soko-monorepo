@@ -35,13 +35,6 @@ impl Otp {
         hasher.finalize().into()
     }
 
-    /// Verifies the OTP against a given hash
-    /// REMIND ME - REMOVE THIS once used
-    #[allow(dead_code)]
-    pub fn verify(&self, hash: &[u8; 32]) -> bool {
-        self.hash() == *hash
-    }
-
     /// Show the OTP as a &str
     pub fn show(&self) -> &str {
         &self.0
@@ -61,14 +54,9 @@ mod tests {
     #[test]
     fn test_hash() {
         let otp = Otp::from("123456");
+        let expected_hash = sha2::Sha256::digest(b"123456");
         let hash = otp.hash();
         assert_eq!(hash.len(), 32);
-    }
-
-    #[test]
-    fn test_verify() {
-        let otp = Otp::from("123456");
-        let hash = otp.hash();
-        assert!(otp.verify(&hash));
+        assert_eq!(hash.as_slice(), expected_hash.as_slice());
     }
 }

@@ -7,7 +7,10 @@ use crate::{
         queue::{Queue, QueueError},
     },
     users::{
-        models::{auth_credential::AuthCredential, email_signup::EmailSignupError, user::User},
+        models::{
+            auth_credential::AuthCredential, email_signup::EmailSignupError, user::User,
+            verify_email::VerifyEmailError,
+        },
         notifier::jobs::{SendEmailVerificationOtpPayload, UsersJob},
     },
 };
@@ -28,6 +31,11 @@ pub trait UsersNotifier: Send + Sync + 'static {
         user: &User,
         auth_credential: &AuthCredential,
     ) -> Result<(), EmailSignupError>;
+
+    /// Triggers a notification when user verified their email
+    /// # Errors
+    /// * `VerifyEmailError::Unknown` for any errors that may occur during the process
+    async fn user_verified_email(&self, user: &User) -> Result<(), VerifyEmailError>;
 }
 
 #[derive(Clone)]
@@ -64,6 +72,16 @@ impl<Q: Queue> UsersNotifier for UsersNotifierImpl<Q> {
             "sent notification for user signed up with email: {}",
             user.email
         );
+        Ok(())
+    }
+
+    async fn user_verified_email(&self, user: &User) -> Result<(), VerifyEmailError> {
+        debug!(
+            "sending notification for user verified email: {}",
+            user.email
+        );
+
+        info!("sent notification for user verified email: {}", user.email);
         Ok(())
     }
 }
