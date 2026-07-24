@@ -1,16 +1,15 @@
+use std::time::Duration;
+
 use axum::http::StatusCode;
 use ethoko_central::{
     newtypes::{email::Email, handle::Handle, password::Password},
     users::models::{email_signup::SignupEmailBody, verify_email::VerifyEmailBody},
 };
 mod common;
-use common::{default_test_config, setup_instance};
+use common::{TestConfigBuilder, setup_instance};
 use fake::{Fake, Faker};
 
-#[tokio::test]
-async fn test_verify_email() {
-    let instance_state = setup_instance(&default_test_config()).await.unwrap();
-
+async fn setup_user(instance_state: &common::InstanceState) -> (Email, Handle, Password) {
     let email = Faker.fake::<Email>();
     let handle = Faker.fake::<Handle>();
     let password = Faker.fake::<Password>();
@@ -30,14 +29,25 @@ async fn test_verify_email() {
 
     instance_state.job_worker.consume_jobs().await.unwrap();
 
-    let otp_email_subject = instance_state
+    (email, handle, password)
+}
+
+#[tokio::test]
+async fn test_verify_email_200_valid_otp() {
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
+
+    let (email, _handle, _password) = setup_user(&instance_state).await;
+
+    let otp = instance_state
         .email_service
         .get_emails_sent_to(&email)
         .pop()
-        .expect("no email sent to user");
-
-    // Format coming directly from users job processor for now
-    let otp = otp_email_subject.strip_prefix("OTP: ").unwrap().trim();
+        .expect("no email sent to user")
+        .strip_prefix("OTP: ")
+        .map(|s| s.trim().to_string())
+        .unwrap();
 
     let verify_email_body = VerifyEmailBody {
         email: email.to_string(),
@@ -53,4 +63,142 @@ async fn test_verify_email() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_verify_email_400_already_verified() {
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
+
+    let (email, _handle, _password) = setup_user(&instance_state).await;
+
+    let otp = instance_state
+        .email_service
+        .get_emails_sent_to(&email)
+        .pop()
+        .expect("no email sent to user")
+        .strip_prefix("OTP: ")
+        .map(|s| s.trim().to_string())
+        .unwrap();
+
+    let verify_email_body = VerifyEmailBody {
+        email: email.to_string(),
+        otp: otp.to_string(),
+    };
+
+    // First verification attempt
+    let response = instance_state
+        .reqwest_client
+        .post(format!("{}/auth/verify-email", &instance_state.server_url))
+        .json(&verify_email_body)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Second verification attempt with the same OTP
+    let response = instance_state
+        .reqwest_client
+        .post(format!("{}/auth/verify-email", &instance_state.server_url))
+        .json(&verify_email_body)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_verify_email_400_invalid_otp() {
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
+
+    let (email, _handle, _password) = setup_user(&instance_state).await;
+
+    let verify_email_body = VerifyEmailBody {
+        email: email.to_string(),
+        otp: "invalid-otp".to_string(),
+    };
+
+    let response = instance_state
+        .reqwest_client
+        .post(format!("{}/auth/verify-email", &instance_state.server_url))
+        .json(&verify_email_body)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_verify_email_400_invalid_email() {
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
+
+    let (email, _handle, _password) = setup_user(&instance_state).await;
+
+    let otp = instance_state
+        .email_service
+        .get_emails_sent_to(&email)
+        .pop()
+        .expect("no email sent to user")
+        .strip_prefix("OTP: ")
+        .map(|s| s.trim().to_string())
+        .unwrap();
+
+    let verify_email_body = VerifyEmailBody {
+        email: "invalid-email".to_string(),
+        otp: otp.to_string(),
+    };
+
+    let response = instance_state
+        .reqwest_client
+        .post(format!("{}/auth/verify-email", &instance_state.server_url))
+        .json(&verify_email_body)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_verify_email_400_expired_otp() {
+    let instance_state = setup_instance(&TestConfigBuilder::new().with_otp_ttl(3).build())
+        .await
+        .unwrap();
+
+    let (email, _handle, _password) = setup_user(&instance_state).await;
+
+    let otp = instance_state
+        .email_service
+        .get_emails_sent_to(&email)
+        .pop()
+        .expect("no email sent to user")
+        .strip_prefix("OTP: ")
+        .map(|s| s.trim().to_string())
+        .unwrap();
+
+    // Simulate OTP expiration by advancing the time in the email service
+    tokio::time::sleep(Duration::from_secs(3)).await; // Wait for OTP to expire (3 seconds)
+
+    let verify_email_body = VerifyEmailBody {
+        email: email.to_string(),
+        otp: otp.to_string(),
+    };
+
+    let response = instance_state
+        .reqwest_client
+        .post(format!("{}/auth/verify-email", &instance_state.server_url))
+        .json(&verify_email_body)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }

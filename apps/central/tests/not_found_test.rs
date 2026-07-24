@@ -1,10 +1,12 @@
 use axum::http::StatusCode;
 mod common;
-use common::{default_test_config, setup_instance};
+use common::{TestConfigBuilder, setup_instance};
 
 #[tokio::test]
 async fn test_not_found() {
-    let instance_state = setup_instance(&default_test_config()).await.unwrap();
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
 
     let response = reqwest::get(format!("{}/unknown-route", &instance_state.server_url))
         .await

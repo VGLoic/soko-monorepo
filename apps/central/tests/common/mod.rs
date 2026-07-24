@@ -21,15 +21,57 @@ pub struct InstanceState {
     pub job_worker: ManualWorker<InMemoryQueue, RootProcessor>,
 }
 
-pub fn default_test_config() -> Config {
-    Config {
-        port: 0,
-        database_url: "postgresql://admin:admin@localhost:5433/central".into(),
-        log_level: Level::INFO,
-        otp_config: OtpConfig {
-            ttl_seconds: 10 * 60,
-            cooldown_seconds: 60,
-        },
+pub struct TestConfigBuilder {
+    config: Config,
+}
+
+#[allow(dead_code)]
+impl TestConfigBuilder {
+    pub fn new() -> Self {
+        Self {
+            config: Config {
+                port: 0,
+                database_url: "postgresql://admin:admin@localhost:5433/central".into(),
+                log_level: Level::INFO,
+                otp_config: OtpConfig {
+                    ttl_seconds: 10 * 60,
+                    cooldown_seconds: 60,
+                },
+            },
+        }
+    }
+
+    pub fn build_default() -> Config {
+        Self::new().build()
+    }
+
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.config.port = port;
+        self
+    }
+
+    pub fn with_database_url(mut self, database_url: &str) -> Self {
+        self.config.database_url = database_url.into();
+        self
+    }
+
+    pub fn with_log_level(mut self, log_level: Level) -> Self {
+        self.config.log_level = log_level;
+        self
+    }
+
+    pub fn with_otp_ttl(mut self, ttl_seconds: u16) -> Self {
+        self.config.otp_config.ttl_seconds = ttl_seconds;
+        self
+    }
+
+    pub fn with_otp_cooldown(mut self, cooldown_seconds: u16) -> Self {
+        self.config.otp_config.cooldown_seconds = cooldown_seconds;
+        self
+    }
+
+    pub fn build(self) -> Config {
+        self.config
     }
 }
 

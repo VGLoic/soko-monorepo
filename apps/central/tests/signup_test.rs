@@ -4,12 +4,14 @@ use ethoko_central::{
     users::models::{email_signup::SignupEmailBody, users_response},
 };
 mod common;
-use common::{default_test_config, setup_instance};
+use common::{TestConfigBuilder, setup_instance};
 use fake::{Fake, Faker};
 
 #[tokio::test]
 async fn test_signup() {
-    let instance_state = setup_instance(&default_test_config()).await.unwrap();
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
 
     let email = Faker.fake::<Email>();
     let handle = Faker.fake::<Handle>();
@@ -36,7 +38,9 @@ async fn test_signup() {
 
 #[tokio::test]
 async fn test_signup_trigger_otp_email_sending() {
-    let instance_state = setup_instance(&default_test_config()).await.unwrap();
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
 
     let email = Faker.fake::<Email>();
     let handle = Faker.fake::<Handle>();
@@ -65,7 +69,9 @@ async fn test_signup_trigger_otp_email_sending() {
 
 #[tokio::test]
 async fn test_signup_invalid_email() {
-    let instance_state = setup_instance(&default_test_config()).await.unwrap();
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
 
     let response = instance_state.reqwest_client.post(format!("{}/auth/signup/email", &instance_state.server_url))
         .json(&serde_json::json!({ "email": "invalid-email", "handle": "testuser", "password": "password123" }))
@@ -77,7 +83,9 @@ async fn test_signup_invalid_email() {
 
 #[tokio::test]
 async fn test_signup_with_existing_email_fails() {
-    let instance_state = setup_instance(&default_test_config()).await.unwrap();
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
 
     let email = Faker.fake::<Email>();
     let handle = Faker.fake::<Handle>();
@@ -113,7 +121,9 @@ async fn test_signup_with_existing_email_fails() {
 
 #[tokio::test]
 async fn test_signup_with_existing_handle_fails() {
-    let instance_state = setup_instance(&default_test_config()).await.unwrap();
+    let instance_state = setup_instance(&TestConfigBuilder::build_default())
+        .await
+        .unwrap();
 
     let email = Faker.fake::<Email>();
     let handle = Faker.fake::<Handle>();
