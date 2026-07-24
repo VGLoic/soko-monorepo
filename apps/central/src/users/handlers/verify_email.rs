@@ -40,7 +40,6 @@ impl From<VerifyEmailError> for ApiError {
                 ApiError::BadRequest("\"email\": email already verified".to_string())
             }
             VerifyEmailError::InvalidOtp => {
-                println!("REMIND ME: Invalid OTP error occurred");
                 ApiError::BadRequest("\"otp\": invalid otp".to_string())
             }
             VerifyEmailError::OtpExpired => {

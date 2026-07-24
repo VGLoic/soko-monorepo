@@ -39,8 +39,6 @@ async fn test_verify_email() {
     // Format coming directly from users job processor for now
     let otp = otp_email_subject.strip_prefix("OTP: ").unwrap().trim();
 
-    println!("REMIND MEEEEEE otp: {otp}");
-
     let verify_email_body = VerifyEmailBody {
         email: email.to_string(),
         otp: otp.to_string(),
