@@ -1,12 +1,16 @@
-use crate::users::{
-    models::{
-        auth_credential::AuthCredential,
-        email_signup::{EmailSignupError, EmailSignupRequest},
-        user::User,
-        verify_email::{VerifyEmailError, VerifyEmailRequest},
+use crate::{
+    config::OtpConfig,
+    users::{
+        models::{
+            auth_credential::AuthCredential,
+            email_signup::{EmailSignupError, EmailSignupRequest},
+            resend_verification_otp::{ResendVerificationOtpError, ResendVerificationOtpRequest},
+            user::User,
+            verify_email::{VerifyEmailError, VerifyEmailRequest},
+        },
+        notifier::UsersNotifier,
+        repository::{AuthRepository, GetLastOtpRequestError, GetUserError},
     },
-    notifier::UsersNotifier,
-    repository::AuthRepository,
 };
 use tracing::{error, info};
 
@@ -33,19 +37,34 @@ pub trait AuthService: Send + Sync + 'static {
     /// * `VerifyEmailError::NotFound` if the user with the provided email is not found.
     /// * `VerifyEmailError::Unknown` for any other errors that may occur during the process.
     async fn verify_email(&self, request: VerifyEmailRequest) -> Result<User, VerifyEmailError>;
+
+    /// Resends the verification OTP to the user's email.
+    /// - If the user's email is already verified, an error is returned.
+    /// - The service only checks the condition for resend, the actual sending of the OTP is handled by the notifier.
+    /// # Errors
+    /// * `ResendVerificationOtpError::UserNotFound` if the user with the provided email is not found.
+    /// * `ResendVerificationOtpError::UserAlreadyVerified` if the user's email is already verified.
+    /// * `ResendVerificationOtpError::CooldownNotElapsed` if the cooldown period has not elapsed yet for requesting a new verification code.
+    /// * `ResendVerificationOtpError::Unknown` for any other errors that may occur during the process.
+    async fn resend_verification_otp(
+        &self,
+        request: ResendVerificationOtpRequest,
+    ) -> Result<(), ResendVerificationOtpError>;
 }
 
 #[derive(Clone)]
 pub struct AuthServiceImpl<R: AuthRepository, N: UsersNotifier> {
     repository: R,
     notifier: N,
+    otp_config: OtpConfig,
 }
 
 impl<R: AuthRepository, N: UsersNotifier> AuthServiceImpl<R, N> {
-    pub fn new(repository: R, notifier: N) -> Self {
+    pub fn new(repository: R, notifier: N, otp_config: OtpConfig) -> Self {
         Self {
             repository,
             notifier,
+            otp_config,
         }
     }
 }
@@ -87,5 +106,53 @@ impl<R: AuthRepository, N: UsersNotifier> AuthService for AuthServiceImpl<R, N> 
         );
 
         Ok(user)
+    }
+
+    async fn resend_verification_otp(
+        &self,
+        request: ResendVerificationOtpRequest,
+    ) -> Result<(), ResendVerificationOtpError> {
+        let user = self
+            .repository
+            .get_user_by_email(&request.email)
+            .await
+            .map_err(|e| match e {
+                GetUserError::NotFound => ResendVerificationOtpError::UserNotFound,
+                GetUserError::Unknown(err) => err.context("Error fetching user by email").into(),
+            })?;
+        if user.email_verified {
+            return Err(ResendVerificationOtpError::UserAlreadyVerified);
+        }
+        let last_otp = self
+            .repository
+            .get_last_otp_request_by_user_id(user.id)
+            .await
+            .map_err(|e| match e {
+                GetLastOtpRequestError::Unknown(err) => {
+                    err.context("Error fetching last OTP request by user ID")
+                }
+            })?;
+        if let Some(last_otp) = last_otp {
+            let now = chrono::Utc::now();
+            let elapsed = now.signed_duration_since(last_otp.created_at);
+            if elapsed < chrono::Duration::seconds(self.otp_config.cooldown_seconds.into()) {
+                return Err(ResendVerificationOtpError::CooldownNotElapsed);
+            }
+        }
+
+        if let Err(e) = self
+            .notifier
+            .user_requested_resend_verification_otp(&user)
+            .await
+        {
+            error!(
+                "Error in user_requested_resend_verification_otp notification: {:?}",
+                e
+            );
+        }
+
+        info!("Resent verification OTP to email: {}", request.email);
+
+        Ok(())
     }
 }

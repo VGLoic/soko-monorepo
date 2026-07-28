@@ -1,6 +1,7 @@
 use fake::{Dummy, Fake, faker, rand};
 use serde::{Deserialize, Serialize, de::Visitor};
 use sqlx::{Database, Decode, Encode};
+use thiserror::Error;
 use validator::ValidateEmail;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -40,9 +41,11 @@ impl Email {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum EmailError {
+    #[error("Email cannot be empty")]
     Empty,
+    #[error("Invalid email format")]
     InvalidFormat,
 }
 

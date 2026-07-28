@@ -8,7 +8,8 @@ use crate::{
     },
     users::{
         models::{
-            auth_credential::AuthCredential, email_signup::EmailSignupError, user::User,
+            auth_credential::AuthCredential, email_signup::EmailSignupError,
+            resend_verification_otp::ResendVerificationOtpError, user::User,
             verify_email::VerifyEmailError,
         },
         notifier::jobs::{SendEmailVerificationOtpPayload, UsersJob},
@@ -36,6 +37,14 @@ pub trait UsersNotifier: Send + Sync + 'static {
     /// # Errors
     /// * `VerifyEmailError::Unknown` for any errors that may occur during the process
     async fn user_verified_email(&self, user: &User) -> Result<(), VerifyEmailError>;
+
+    /// Triggers a notification when user requested to resend verification OTP
+    /// # Errors
+    /// * `ResendVerificationOtpError::Unknown` for any errors that may occur during the process.
+    async fn user_requested_resend_verification_otp(
+        &self,
+        user: &User,
+    ) -> Result<(), ResendVerificationOtpError>;
 }
 
 #[derive(Clone)]
@@ -66,7 +75,11 @@ impl<Q: Queue> UsersNotifier for UsersNotifierImpl<Q> {
         )?
         .with_max_retries(3)
         .with_scheduled_at(Utc::now());
-        self.queue.enqueue(job).await?;
+        self.queue.enqueue(job).await.map_err(|e| match e {
+            QueueError::Unknown(err) => EmailSignupError::Unknown(
+                err.context("Error enqueuing job for user signed up with email"),
+            ),
+        })?;
 
         info!(
             "sent notification for user signed up with email: {}",
@@ -82,6 +95,35 @@ impl<Q: Queue> UsersNotifier for UsersNotifierImpl<Q> {
         );
 
         info!("sent notification for user verified email: {}", user.email);
+        Ok(())
+    }
+
+    async fn user_requested_resend_verification_otp(
+        &self,
+        user: &User,
+    ) -> Result<(), ResendVerificationOtpError> {
+        debug!(
+            "sending notification for user requested resend verification OTP: {}",
+            user.email
+        );
+
+        let job = JobRequest::new(
+            USERS_JOB_TOPIC.to_string(),
+            UsersJob::SendEmailVerificationOtp(SendEmailVerificationOtpPayload::new(user)),
+        )?
+        .with_max_retries(3)
+        .with_scheduled_at(Utc::now());
+
+        self.queue.enqueue(job).await.map_err(|e| match e {
+            QueueError::Unknown(err) => ResendVerificationOtpError::Unknown(
+                err.context("Error enqueuing job for user requested resend verification OTP"),
+            ),
+        })?;
+
+        info!(
+            "sent notification for user requested resend verification OTP: {}",
+            user.email
+        );
         Ok(())
     }
 }

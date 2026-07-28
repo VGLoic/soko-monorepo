@@ -75,8 +75,11 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let auth_repository = users::repository::PsqlAuthRepository::new(pool);
     let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
-    let auth_service =
-        users::service::AuthServiceImpl::new(auth_repository.clone(), users_notifier);
+    let auth_service = users::service::AuthServiceImpl::new(
+        auth_repository.clone(),
+        users_notifier,
+        config.otp_config.clone(),
+    );
     let users_job_processor = users::notifier::job_processor::UsersJobProcessor::new(
         auth_repository.clone(),
         email_service,
