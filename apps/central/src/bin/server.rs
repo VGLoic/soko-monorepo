@@ -4,6 +4,7 @@ use ethoko_central::{
     externalcom::email::DummyEmailSender,
     httpserver::serve_http_server,
     jobs::{self, processor::JobProcessor},
+    router::app_router,
     users::{self, notifier::USERS_JOB_TOPIC},
 };
 use sqlx::postgres::PgPoolOptions;
@@ -113,7 +114,25 @@ async fn main() -> Result<(), anyhow::Error> {
         listener.local_addr().unwrap()
     );
 
-    if let Err(e) = serve_http_server(listener, auth_service).await {
+    let (app_router, ip_rate_limiters) = app_router(
+        config.global_rate_limit_config.clone(),
+        config.auth_rate_limit_config.clone(),
+        auth_service,
+    )
+    .map_err(|e| e.context("Error while building the application router"))?;
+
+    let limiter_cleanup_token = cancellation_token.clone();
+    let limiter_cleanup_task = tokio::spawn(async move {
+        if let Err(e) = ip_rate_limiters
+            .run_cleanup_old_routine(limiter_cleanup_token)
+            .await
+        {
+            error!("Error during limiter cleanup task: {e:?}");
+        }
+        info!("Gracefully exiting limiter cleanup task")
+    });
+
+    if let Err(e) = serve_http_server(listener, app_router).await {
         error!("Error during http server graceful shutdown: {e:?}");
     }
 
@@ -126,6 +145,9 @@ async fn main() -> Result<(), anyhow::Error> {
     }
     if let Err(e) = job_queue_handle.await {
         error!("Error during job queue handler graceful shutdown: {e:?}");
+    }
+    if let Err(e) = limiter_cleanup_task.await {
+        error!("Error during limiter cleanup task graceful shutdown: {e:?}");
     }
 
     Ok(())

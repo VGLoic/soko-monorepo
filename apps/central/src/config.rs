@@ -15,6 +15,10 @@ pub struct Config {
     pub log_level: Level,
     /// OTP configuration
     pub otp_config: OtpConfig,
+    /// Global rate limit configuration
+    pub global_rate_limit_config: RateLimitConfig,
+    /// Auth rate limit configuration for specific public routes, e.g. re-send verification OTP
+    pub auth_rate_limit_config: RateLimitConfig,
 }
 
 #[derive(Clone, Debug)]
@@ -23,6 +27,14 @@ pub struct OtpConfig {
     pub ttl_seconds: u16,
     /// Cooldown between two OTP for a single user in seconds
     pub cooldown_seconds: u16,
+}
+
+#[derive(Clone, Debug)]
+pub struct RateLimitConfig {
+    /// Maximum number of requests per second
+    pub replenishment_per_second: u64,
+    /// Maximum burst size
+    pub max_burst_size: u32,
 }
 
 impl Config {
@@ -62,11 +74,23 @@ impl Config {
             cooldown_seconds: 60,
         };
 
+        let global_rate_limit_config = RateLimitConfig {
+            replenishment_per_second: 2,
+            max_burst_size: 5,
+        };
+
+        let auth_rate_limit_config = RateLimitConfig {
+            replenishment_per_second: 1,
+            max_burst_size: 1,
+        };
+
         Ok(Config {
             port,
             database_url,
             log_level,
             otp_config,
+            global_rate_limit_config,
+            auth_rate_limit_config,
         })
     }
 }

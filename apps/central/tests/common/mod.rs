@@ -2,6 +2,7 @@ use ethoko_central::{
     config::{Config, OtpConfig},
     httpserver::serve_http_server,
     jobs::{memoryqueue::InMemoryQueue, processor::JobProcessor, rootprocessor::RootProcessor},
+    router::app_router,
     users::{self, notifier::USERS_JOB_TOPIC},
 };
 use sqlx::postgres::PgPoolOptions;
@@ -37,6 +38,14 @@ impl TestConfigBuilder {
                     ttl_seconds: 10 * 60,
                     cooldown_seconds: 60,
                 },
+                global_rate_limit_config: ethoko_central::config::RateLimitConfig {
+                    replenishment_per_second: 100,
+                    max_burst_size: 1_000,
+                },
+                auth_rate_limit_config: ethoko_central::config::RateLimitConfig {
+                    replenishment_per_second: 100,
+                    max_burst_size: 1_000,
+                },
             },
         }
     }
@@ -67,6 +76,16 @@ impl TestConfigBuilder {
 
     pub fn with_otp_cooldown(mut self, cooldown_seconds: u16) -> Self {
         self.config.otp_config.cooldown_seconds = cooldown_seconds;
+        self
+    }
+
+    pub fn with_auth_rate_limit(
+        mut self,
+        replenishment_per_second: u64,
+        max_burst_size: u32,
+    ) -> Self {
+        self.config.auth_rate_limit_config.replenishment_per_second = replenishment_per_second;
+        self.config.auth_rate_limit_config.max_burst_size = max_burst_size;
         self
     }
 
@@ -144,8 +163,14 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
         listener.local_addr().unwrap().port()
     );
 
+    let (app_router, _) = app_router(
+        config.global_rate_limit_config.clone(),
+        config.auth_rate_limit_config.clone(),
+        auth_service,
+    )
+    .unwrap();
     tokio::spawn(async move {
-        if let Err(e) = serve_http_server(listener, auth_service).await {
+        if let Err(e) = serve_http_server(listener, app_router).await {
             error!("Error during http server graceful shutdown: {e:?}");
         }
     });

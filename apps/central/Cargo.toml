@@ -20,6 +20,7 @@ base64 = "0.22.1"
 chrono = { version = "0.4.44", features = ["serde"] }
 dotenvy = "0.15.7"
 fake = { version = "5.1.0", features = ["chrono"] }
+governor = "0.10.0"
 reqwest = { version = "0.13.3", features = ["json", "blocking"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -29,6 +30,7 @@ thiserror = "2.0.18"
 tokio = { version = "1.52.1", features = ["full"] }
 tokio-util = "0.7.18"
 tower-http = { version = "0.6.8", features = ["trace", "timeout", "request-id"] }
+tower_governor = { version = "0.8.0", features = ["tracing", "axum"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
