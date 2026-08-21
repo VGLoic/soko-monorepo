@@ -137,7 +137,7 @@ async fn test_resend_verification_email_user_already_verified_400() {
 
     let emails_sent = instance_state.email_service.get_emails_sent_to(&email);
     let first_otp = emails_sent
-        .get(0)
+        .first()
         .expect("Expected an OTP email to be sent")
         .strip_prefix("OTP: ")
         .map(|s| s.trim().to_string())
@@ -210,11 +210,11 @@ async fn test_resend_verification_email_cooldown_not_elapsed_400() {
 }
 
 #[tokio::test]
-async fn test_resend_verification_email_429() {
+async fn test_resend_verification_email_rate_limit_429() {
     let instance_state = setup_instance(
         &TestConfigBuilder::new()
             .with_otp_cooldown(3)
-            .with_auth_rate_limit(10, 1)
+            .with_auth_rate_limit(3, 1)
             .build(),
     )
     .await
@@ -225,7 +225,7 @@ async fn test_resend_verification_email_429() {
     // Process the first OTP email sending
     instance_state.job_worker.consume_jobs().await.unwrap();
 
-    // Wait for 4 seconds to ensure the cooldown period has passed
+    // Wait for 4 seconds to ensure the cooldown period has passed and rate limiting bucket has been filled up again
     tokio::time::sleep(Duration::from_secs(4)).await;
 
     let resend_response_0 = instance_state
@@ -263,4 +263,3 @@ async fn test_resend_verification_email_429() {
     assert_eq!(resend_response_1.status(), StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(resend_response_2.status(), StatusCode::TOO_MANY_REQUESTS);
 }
-

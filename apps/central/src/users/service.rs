@@ -1,9 +1,11 @@
 use crate::{
     config::OtpConfig,
+    newtypes::email::Email,
     users::{
         models::{
             auth_credential::AuthCredential,
             email_signup::{EmailSignupError, EmailSignupRequest},
+            queries::GetUserByEmailError,
             resend_verification_otp::{ResendVerificationOtpError, ResendVerificationOtpRequest},
             user::User,
             verify_email::{VerifyEmailError, VerifyEmailRequest},
@@ -50,6 +52,12 @@ pub trait AuthService: Send + Sync + 'static {
         &self,
         request: ResendVerificationOtpRequest,
     ) -> Result<(), ResendVerificationOtpError>;
+
+    /// Fetches a user by their email.
+    /// # Errors
+    /// * `GetUserByEmailError::NotFound` if the user with the provided email is not found.
+    /// * `GetUserByEmailError::Unknown` for any other errors that may occur during the process.
+    async fn get_user_by_email(&self, email: &Email) -> Result<User, GetUserByEmailError>;
 }
 
 #[derive(Clone)]
@@ -154,5 +162,15 @@ impl<R: AuthRepository, N: UsersNotifier> AuthService for AuthServiceImpl<R, N> 
         info!("Resent verification OTP to email: {}", request.email);
 
         Ok(())
+    }
+
+    async fn get_user_by_email(&self, email: &Email) -> Result<User, GetUserByEmailError> {
+        self.repository
+            .get_user_by_email(email)
+            .await
+            .map_err(|e| match e {
+                GetUserError::NotFound => GetUserByEmailError::NotFound,
+                GetUserError::Unknown(err) => err.context("Error fetching user by email").into(),
+            })
     }
 }

@@ -1,5 +1,5 @@
 use crate::newtypes::email::Email;
-
+use tracing::info;
 /// Email service trait for email operations
 #[async_trait::async_trait]
 pub trait EmailService: Send + Sync + 'static {
@@ -16,7 +16,8 @@ pub struct DummyEmailSender;
 
 #[async_trait::async_trait]
 impl EmailService for DummyEmailSender {
-    async fn send_email(&self, _: Email, _: String) -> Result<(), anyhow::Error> {
+    async fn send_email(&self, email: Email, content: String) -> Result<(), anyhow::Error> {
+        info!("Sending email to: {}, content: {}", email, content);
         Ok(())
     }
 }

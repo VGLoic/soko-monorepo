@@ -81,7 +81,7 @@ impl Config {
 
         let auth_rate_limit_config = RateLimitConfig {
             replenishment_per_second: 1,
-            max_burst_size: 1,
+            max_burst_size: 2,
         };
 
         Ok(Config {
