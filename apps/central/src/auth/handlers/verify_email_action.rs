@@ -1,4 +1,4 @@
-use crate::users::handlers::html_templates::HtmlTemplate;
+use crate::auth::handlers::html_templates::HtmlTemplate;
 use askama::Template;
 use axum::{
     extract::{Query, State},
@@ -9,9 +9,9 @@ use tracing::error;
 
 use super::html_templates::TemplateError;
 use crate::{
+    auth::models::requests::verify_email::{VerifyEmailError, VerifyEmailRequest},
     newtypes::{email::Email, handle::Handle},
     router::AppState,
-    users::models::verify_email::{VerifyEmailError, VerifyEmailRequest},
 };
 
 #[derive(Template)]

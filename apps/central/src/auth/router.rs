@@ -1,18 +1,18 @@
+use crate::auth::handlers::resend_verification_otp_action::handle_resend_verification_otp_action;
 use crate::router::IpRateLimiter;
-use crate::users::handlers::resend_verification_otp_action::handle_resend_verification_otp_action;
 use crate::{
-    config::RateLimitConfig,
-    router::AppState,
-    users::handlers::{
+    auth::handlers::{
         email_signup::handle_signup_email, resend_verification_otp::handle_resend_verification_otp,
         verify_email::handle_verify_email, verify_email_action::handle_verify_email_action,
     },
+    config::RateLimitConfig,
+    router::AppState,
 };
 use axum::{Router, routing::post};
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 
-pub fn auth_router(
+pub fn router(
     rate_limit_config: RateLimitConfig,
 ) -> Result<(Router<AppState>, IpRateLimiter), anyhow::Error> {
     let auth_router_governor_conf = GovernorConfigBuilder::default()

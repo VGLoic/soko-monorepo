@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    auth::models::user::User,
     newtypes::{email::Email, handle::Handle},
-    users::models::user::User,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum UsersJob {
+pub enum AuthJob {
     SendEmailVerificationOtp(SendEmailVerificationOtpPayload),
 }
 

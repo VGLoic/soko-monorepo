@@ -1,14 +1,14 @@
 use axum::{Json, extract::State, http::StatusCode};
 
 use crate::{
-    newtypes::email::EmailError,
-    router::{ApiError, AppState},
-    users::models::{
-        users_response::UserResponse,
-        verify_email::{
+    auth::models::{
+        requests::verify_email::{
             VerifyEmailBody, VerifyEmailError, VerifyEmailRequest, VerifyEmailRequestError,
         },
+        users_response::UserResponse,
     },
+    newtypes::email::EmailError,
+    router::{ApiError, AppState},
 };
 
 pub async fn handle_verify_email(

@@ -2,28 +2,32 @@ use chrono::Utc;
 use tracing::{debug, info};
 
 use crate::{
+    auth::{
+        models::{
+            auth_credential::AuthCredential,
+            requests::{
+                email_signup::EmailSignupError,
+                resend_verification_otp::ResendVerificationOtpError,
+                verify_email::VerifyEmailError,
+            },
+            user::User,
+        },
+        notifier::jobs::{AuthJob, SendEmailVerificationOtpPayload},
+    },
     jobs::{
         job::JobRequest,
         queue::{Queue, QueueError},
-    },
-    users::{
-        models::{
-            auth_credential::AuthCredential, email_signup::EmailSignupError,
-            resend_verification_otp::ResendVerificationOtpError, user::User,
-            verify_email::VerifyEmailError,
-        },
-        notifier::jobs::{SendEmailVerificationOtpPayload, UsersJob},
     },
 };
 
 pub mod job_processor;
 pub mod jobs;
 
-pub const USERS_JOB_TOPIC: &str = "users";
+pub const AUTH_JOB_TOPIC: &str = "auth";
 
 #[async_trait::async_trait]
-/// Defines the UsersNotifier trait for users related notifications
-pub trait UsersNotifier: Send + Sync + 'static {
+/// Defines the AuthNotifier trait for auth related notifications
+pub trait AuthNotifier: Send + Sync + 'static {
     /// Triggers a notification when user signed up with email
     /// # Errors
     /// * `EmailSignupError::Unknown` for any errors that may occur during the process.
@@ -48,18 +52,18 @@ pub trait UsersNotifier: Send + Sync + 'static {
 }
 
 #[derive(Clone)]
-pub struct UsersNotifierImpl<Q: Queue> {
+pub struct AuthNotifierImpl<Q: Queue> {
     queue: Q,
 }
 
-impl<Q: Queue> UsersNotifierImpl<Q> {
+impl<Q: Queue> AuthNotifierImpl<Q> {
     pub fn new(queue: Q) -> Self {
         Self { queue }
     }
 }
 
 #[async_trait::async_trait]
-impl<Q: Queue> UsersNotifier for UsersNotifierImpl<Q> {
+impl<Q: Queue> AuthNotifier for AuthNotifierImpl<Q> {
     async fn user_signed_up_with_email(
         &self,
         user: &User,
@@ -70,8 +74,8 @@ impl<Q: Queue> UsersNotifier for UsersNotifierImpl<Q> {
             user.email
         );
         let job = JobRequest::new(
-            USERS_JOB_TOPIC.to_string(),
-            UsersJob::SendEmailVerificationOtp(SendEmailVerificationOtpPayload::new(user)),
+            AUTH_JOB_TOPIC.to_string(),
+            AuthJob::SendEmailVerificationOtp(SendEmailVerificationOtpPayload::new(user)),
         )?
         .with_max_retries(3)
         .with_scheduled_at(Utc::now());
@@ -108,8 +112,8 @@ impl<Q: Queue> UsersNotifier for UsersNotifierImpl<Q> {
         );
 
         let job = JobRequest::new(
-            USERS_JOB_TOPIC.to_string(),
-            UsersJob::SendEmailVerificationOtp(SendEmailVerificationOtpPayload::new(user)),
+            AUTH_JOB_TOPIC.to_string(),
+            AuthJob::SendEmailVerificationOtp(SendEmailVerificationOtpPayload::new(user)),
         )?
         .with_max_retries(3)
         .with_scheduled_at(Utc::now());

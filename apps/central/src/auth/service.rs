@@ -1,18 +1,22 @@
 use crate::{
-    config::OtpConfig,
-    newtypes::email::Email,
-    users::{
+    auth::{
         models::{
             auth_credential::AuthCredential,
-            email_signup::{EmailSignupError, EmailSignupRequest},
             queries::GetUserByEmailError,
-            resend_verification_otp::{ResendVerificationOtpError, ResendVerificationOtpRequest},
+            requests::{
+                email_signup::{EmailSignupError, EmailSignupRequest},
+                resend_verification_otp::{
+                    ResendVerificationOtpError, ResendVerificationOtpRequest,
+                },
+                verify_email::{VerifyEmailError, VerifyEmailRequest},
+            },
             user::User,
-            verify_email::{VerifyEmailError, VerifyEmailRequest},
         },
-        notifier::UsersNotifier,
+        notifier::AuthNotifier,
         repository::{AuthRepository, GetLastOtpRequestError, GetUserError},
     },
+    config::OtpConfig,
+    newtypes::email::Email,
 };
 use tracing::{error, info};
 
@@ -61,13 +65,13 @@ pub trait AuthService: Send + Sync + 'static {
 }
 
 #[derive(Clone)]
-pub struct AuthServiceImpl<R: AuthRepository, N: UsersNotifier> {
+pub struct AuthServiceImpl<R: AuthRepository, N: AuthNotifier> {
     repository: R,
     notifier: N,
     otp_config: OtpConfig,
 }
 
-impl<R: AuthRepository, N: UsersNotifier> AuthServiceImpl<R, N> {
+impl<R: AuthRepository, N: AuthNotifier> AuthServiceImpl<R, N> {
     pub fn new(repository: R, notifier: N, otp_config: OtpConfig) -> Self {
         Self {
             repository,
@@ -78,7 +82,7 @@ impl<R: AuthRepository, N: UsersNotifier> AuthServiceImpl<R, N> {
 }
 
 #[async_trait::async_trait]
-impl<R: AuthRepository, N: UsersNotifier> AuthService for AuthServiceImpl<R, N> {
+impl<R: AuthRepository, N: AuthNotifier> AuthService for AuthServiceImpl<R, N> {
     async fn signup_with_email(
         &self,
         request: EmailSignupRequest,

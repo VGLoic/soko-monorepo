@@ -1,23 +1,23 @@
 use crate::{
+    auth::{
+        models::requests::send_email_verification_otp::SendEmailVerificationOtpError,
+        notifier::jobs::{AuthJob, SendEmailVerificationOtpPayload},
+        repository::AuthRepository,
+    },
     config::OtpConfig,
     externalcom::email::{EmailService, EmailVerificationCodePayload},
     jobs::{job::Job, processor::JobProcessor},
-    users::{
-        models::send_email_verification_otp::SendEmailVerificationOtpError,
-        notifier::jobs::{SendEmailVerificationOtpPayload, UsersJob},
-        otp,
-        repository::AuthRepository,
-    },
+    newtypes::otp::Otp,
 };
 use tracing::{error, info, warn};
 
 #[derive(Debug, Clone)]
-pub struct UsersJobProcessor<R: AuthRepository, E: EmailService> {
+pub struct AuthJobProcessor<R: AuthRepository, E: EmailService> {
     auth_repository: R,
     email_service: E,
     otp_config: OtpConfig,
 }
-impl<R: AuthRepository, E: EmailService> UsersJobProcessor<R, E> {
+impl<R: AuthRepository, E: EmailService> AuthJobProcessor<R, E> {
     pub fn new(auth_repository: R, email_service: E, otp_config: OtpConfig) -> Self {
         Self {
             auth_repository,
@@ -28,15 +28,15 @@ impl<R: AuthRepository, E: EmailService> UsersJobProcessor<R, E> {
 }
 
 #[async_trait::async_trait]
-impl<R: AuthRepository, E: EmailService> JobProcessor for UsersJobProcessor<R, E> {
+impl<R: AuthRepository, E: EmailService> JobProcessor for AuthJobProcessor<R, E> {
     async fn process_job(&self, job: &Job) -> Result<(), anyhow::Error> {
         info!("start processing job {}", job.id);
 
-        let payload: UsersJob = serde_json::from_str(&job.payload)
+        let payload: AuthJob = serde_json::from_str(&job.payload)
             .map_err(|e| anyhow::Error::new(e).context("failed to deserialized job payload"))?;
 
         match payload {
-            UsersJob::SendEmailVerificationOtp(p) => {
+            AuthJob::SendEmailVerificationOtp(p) => {
                 self.process_send_email_verification_otp(p)
                     .await
                     .map_err(|e| {
@@ -52,12 +52,12 @@ impl<R: AuthRepository, E: EmailService> JobProcessor for UsersJobProcessor<R, E
     }
 }
 
-impl<R: AuthRepository, E: EmailService> UsersJobProcessor<R, E> {
+impl<R: AuthRepository, E: EmailService> AuthJobProcessor<R, E> {
     async fn process_send_email_verification_otp(
         &self,
         payload: SendEmailVerificationOtpPayload,
     ) -> Result<(), anyhow::Error> {
-        let otp = otp::Otp::generate()?;
+        let otp = Otp::generate()?;
 
         let otp_hash = otp.hash();
 

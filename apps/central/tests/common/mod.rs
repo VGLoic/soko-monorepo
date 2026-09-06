@@ -1,9 +1,9 @@
 use ethoko_central::{
+    auth::{self, notifier::AUTH_JOB_TOPIC},
     config::{Config, OtpConfig},
     httpserver::serve_http_server,
     jobs::{memoryqueue::InMemoryQueue, processor::JobProcessor, rootprocessor::RootProcessor},
     router::app_router,
-    users::{self, notifier::USERS_JOB_TOPIC},
 };
 use sqlx::postgres::PgPoolOptions;
 use std::{collections::HashMap, net::SocketAddr, time::Duration};
@@ -127,14 +127,14 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
 
     let email_service = FakeEmailService::default();
 
-    let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
-    let auth_repository = users::repository::PsqlAuthRepository::new(pool);
-    let auth_service = users::service::AuthServiceImpl::new(
+    let users_notifier = auth::notifier::AuthNotifierImpl::new(job_queue.clone());
+    let auth_repository = auth::repository::PsqlAuthRepository::new(pool);
+    let auth_service = auth::service::AuthServiceImpl::new(
         auth_repository.clone(),
         users_notifier,
         config.otp_config.clone(),
     );
-    let users_job_processor = users::notifier::job_processor::UsersJobProcessor::new(
+    let users_job_processor = auth::notifier::job_processor::AuthJobProcessor::new(
         auth_repository.clone(),
         email_service.clone(),
         config.otp_config.clone(),
@@ -143,7 +143,7 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
     let job_worker_queue = job_queue.clone();
     let job_worker_users_job_processor = users_job_processor.clone();
     let root_processor = RootProcessor::new(HashMap::from([(
-        USERS_JOB_TOPIC.to_string(),
+        AUTH_JOB_TOPIC.to_string(),
         Box::new(job_worker_users_job_processor) as Box<dyn JobProcessor>,
     )]));
     let job_worker = ManualWorker::new(job_worker_queue, root_processor);

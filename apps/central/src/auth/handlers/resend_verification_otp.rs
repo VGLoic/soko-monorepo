@@ -1,10 +1,10 @@
 use crate::{
-    newtypes::email::EmailError,
-    router::{ApiError, AppState},
-    users::models::resend_verification_otp::{
+    auth::models::requests::resend_verification_otp::{
         ResendVerificationOtpBody, ResendVerificationOtpError, ResendVerificationOtpRequest,
         ResendVerificationOtpRequestError,
     },
+    newtypes::email::EmailError,
+    router::{ApiError, AppState},
 };
 use axum::{Json, extract::State, http::StatusCode};
 

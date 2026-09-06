@@ -1,8 +1,8 @@
 use std::{net::IpAddr, sync::Arc, time::Duration};
 
 use crate::{
+    auth::{router as auth_router, service::AuthService},
     config::RateLimitConfig,
-    users::{auth_router, service::AuthService},
 };
 use anyhow::Context;
 use axum::{
@@ -92,7 +92,7 @@ pub fn app_router(
     let state = AppState { auth_service };
 
     let (auth_router, auth_ip_rate_limiter) =
-        auth_router::auth_router(auth_rate_limit_config).context("failed to build auth router")?;
+        auth_router::router(auth_rate_limit_config).context("failed to build auth router")?;
     let limiters = IpRateLimiters::new(vec![
         IpRateLimiter::new(global_governor_conf.limiter().clone()),
         auth_ip_rate_limiter,

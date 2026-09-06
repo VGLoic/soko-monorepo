@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
-    newtypes::email::{Email, EmailError},
-    users::otp::Otp,
+use crate::newtypes::{
+    email::{Email, EmailError},
+    otp::Otp,
 };
 
 #[derive(Deserialize, Serialize)]

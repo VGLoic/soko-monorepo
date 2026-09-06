@@ -1,5 +1,4 @@
-use crate::newtypes::{email::Email, handle::Handle};
-use crate::users::otp::Otp;
+use crate::newtypes::{email::Email, handle::Handle, otp::Otp};
 use resend_rs::{
     Resend, types::CreateEmailBaseOptions, types::EmailTemplate as ResendEmailTemplate,
 };

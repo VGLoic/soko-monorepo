@@ -1,11 +1,11 @@
 use dotenvy::dotenv;
 use ethoko_central::{
+    auth::{self, notifier::AUTH_JOB_TOPIC},
     config::Config,
     externalcom::email::ResendEmailService,
     httpserver::serve_http_server,
     jobs::{self, processor::JobProcessor},
     router::app_router,
-    users::{self, notifier::USERS_JOB_TOPIC},
 };
 use sqlx::postgres::PgPoolOptions;
 use std::{collections::HashMap, time::Duration};
@@ -75,14 +75,14 @@ async fn main() -> Result<(), anyhow::Error> {
     let email_service =
         ResendEmailService::new(config.self_url.clone(), config.resend_api_key.clone());
 
-    let auth_repository = users::repository::PsqlAuthRepository::new(pool);
-    let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
-    let auth_service = users::service::AuthServiceImpl::new(
+    let auth_repository = auth::repository::PsqlAuthRepository::new(pool);
+    let auth_notifier = auth::notifier::AuthNotifierImpl::new(job_queue.clone());
+    let auth_service = auth::service::AuthServiceImpl::new(
         auth_repository.clone(),
-        users_notifier,
+        auth_notifier,
         config.otp_config.clone(),
     );
-    let users_job_processor = users::notifier::job_processor::UsersJobProcessor::new(
+    let auth_job_processor = auth::notifier::job_processor::AuthJobProcessor::new(
         auth_repository.clone(),
         email_service,
         config.otp_config.clone(),
@@ -92,8 +92,8 @@ async fn main() -> Result<(), anyhow::Error> {
     let job_worker_token = cancellation_token.clone();
     let job_worker_handle = tokio::spawn(async {
         let root_processor = jobs::rootprocessor::RootProcessor::new(HashMap::from([(
-            USERS_JOB_TOPIC.to_string(),
-            Box::new(users_job_processor) as Box<dyn JobProcessor>,
+            AUTH_JOB_TOPIC.to_string(),
+            Box::new(auth_job_processor) as Box<dyn JobProcessor>,
         )]));
         let worker = jobs::polling_worker::Worker::new(job_worker_queue, root_processor, 1_000);
 

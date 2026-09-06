@@ -1,12 +1,12 @@
 use crate::{
-    newtypes::{email::EmailError, handle::HandleError, password::PasswordError},
-    router::{ApiError, AppState},
-    users::models::{
-        email_signup::{
+    auth::models::{
+        requests::email_signup::{
             EmailSignupError, EmailSignupRequest, EmailSignupRequestError, SignupEmailBody,
         },
         users_response::UserResponse,
     },
+    newtypes::{email::EmailError, handle::HandleError, password::PasswordError},
+    router::{ApiError, AppState},
 };
 use axum::{Json, extract::State, http::StatusCode};
 

@@ -1,6 +1,8 @@
-use crate::users::{
+use crate::auth::{
     handlers::html_templates::HtmlTemplate,
-    models::resend_verification_otp::{ResendVerificationOtpError, ResendVerificationOtpRequest},
+    models::requests::resend_verification_otp::{
+        ResendVerificationOtpError, ResendVerificationOtpRequest,
+    },
 };
 use askama::Template;
 use axum::{

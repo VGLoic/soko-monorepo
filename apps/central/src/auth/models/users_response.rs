@@ -1,6 +1,6 @@
 use crate::{
+    auth::models::user::User,
     newtypes::{email::Email, handle::Handle},
-    users::models::user::User,
 };
 use serde::{Deserialize, Serialize};
 

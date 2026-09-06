@@ -1,14 +1,16 @@
 use crate::{
+    auth::models::{
+        auth_credential::AuthCredential,
+        otp_request::{OtpPurpose, OtpRequest},
+        requests::{
+            email_signup::{EmailSignupError, EmailSignupRequest},
+            send_email_verification_otp::SendEmailVerificationOtpError,
+            verify_email::{VerifyEmailError, VerifyEmailRequest},
+        },
+        user::User,
+    },
     config::OtpConfig,
     newtypes::email::Email,
-    users::models::{
-        auth_credential::AuthCredential,
-        email_signup::{EmailSignupError, EmailSignupRequest},
-        otp_request::{OtpPurpose, OtpRequest},
-        send_email_verification_otp::SendEmailVerificationOtpError,
-        user::User,
-        verify_email::{VerifyEmailError, VerifyEmailRequest},
-    },
 };
 use chrono::{TimeDelta, Utc};
 use sqlx::{Executor, Pool, Postgres};
