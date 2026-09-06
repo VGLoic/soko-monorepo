@@ -1,6 +1,6 @@
 use crate::{
     config::OtpConfig,
-    externalcom::email::EmailService,
+    externalcom::email::{EmailService, EmailVerificationCodePayload},
     jobs::{job::Job, processor::JobProcessor},
     users::{
         models::send_email_verification_otp::SendEmailVerificationOtpError,
@@ -59,15 +59,18 @@ impl<R: AuthRepository, E: EmailService> UsersJobProcessor<R, E> {
     ) -> Result<(), anyhow::Error> {
         let otp = otp::Otp::generate()?;
 
-        let content = format!("OTP: {}", otp.show());
+        let otp_hash = otp.hash();
+
+        let email_template_payload =
+            EmailVerificationCodePayload::new(payload.user_email.clone(), payload.user_handle, otp);
         self.email_service
-            .send_email(payload.user_email, content)
+            .send_email(payload.user_email, email_template_payload.into())
             .await
             .map_err(|e| e.context("failed to send email verification OTP"))?;
 
         if let Err(e) = self
             .auth_repository
-            .register_email_verification_otp(payload.user_id, otp.hash(), &self.otp_config)
+            .register_email_verification_otp(payload.user_id, otp_hash, &self.otp_config)
             .await
         {
             match e {

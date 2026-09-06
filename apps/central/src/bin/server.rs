@@ -1,7 +1,7 @@
 use dotenvy::dotenv;
 use ethoko_central::{
     config::Config,
-    externalcom::email::DummyEmailSender,
+    externalcom::email::ResendEmailService,
     httpserver::serve_http_server,
     jobs::{self, processor::JobProcessor},
     router::app_router,
@@ -72,7 +72,8 @@ async fn main() -> Result<(), anyhow::Error> {
         info!("Gracefully exiting job queue handle")
     });
 
-    let email_service = DummyEmailSender;
+    let email_service =
+        ResendEmailService::new(config.self_url.clone(), config.resend_api_key.clone());
 
     let auth_repository = users::repository::PsqlAuthRepository::new(pool);
     let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());

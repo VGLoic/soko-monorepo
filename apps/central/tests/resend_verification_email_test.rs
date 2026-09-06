@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use axum::http::StatusCode;
 use ethoko_central::{
+    externalcom::email::EmailTemplate,
     newtypes::{email::Email, handle::Handle, password::Password},
     users::models::{email_signup::SignupEmailBody, verify_email::VerifyEmailBody},
 };
@@ -63,10 +64,10 @@ async fn test_resend_verification_email_200() {
     let emails_sent = instance_state.email_service.get_emails_sent_to(&email);
     let second_otp = emails_sent
         .get(1)
-        .expect("Expected a second OTP email to be sent")
-        .strip_prefix("OTP: ")
-        .map(|s| s.trim().to_string())
-        .unwrap();
+        .map(|t| match t {
+            EmailTemplate::EmailVerificationCode(payload) => payload.otp.show().to_string(),
+        })
+        .expect("Expected a second OTP email to be sent");
 
     let verify_email_response = instance_state
         .reqwest_client
@@ -138,10 +139,10 @@ async fn test_resend_verification_email_user_already_verified_400() {
     let emails_sent = instance_state.email_service.get_emails_sent_to(&email);
     let first_otp = emails_sent
         .first()
-        .expect("Expected an OTP email to be sent")
-        .strip_prefix("OTP: ")
-        .map(|s| s.trim().to_string())
-        .unwrap();
+        .map(|t| match t {
+            EmailTemplate::EmailVerificationCode(payload) => payload.otp.show().to_string(),
+        })
+        .expect("Expected a first OTP email to be sent");
 
     let verify_email_response = instance_state
         .reqwest_client

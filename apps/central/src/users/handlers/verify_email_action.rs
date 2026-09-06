@@ -1,7 +1,7 @@
 use crate::users::handlers::html_templates::HtmlTemplate;
 use askama::Template;
 use axum::{
-    extract::{Form, State},
+    extract::{Query, State},
     response::IntoResponse,
 };
 use serde::Deserialize;
@@ -32,10 +32,6 @@ pub struct VerifyEmailErrorTemplate {
     err: VerifyEmailActionError,
 }
 
-// TODO
-// - add route for action to resend verification email, which will be a POST request that takes the email as a parameter.
-// - add routes for responses of resend verification actions
-
 pub enum VerifyEmailActionResponse {
     Success(VerifyEmailSuccessTemplate),
     Error(VerifyEmailErrorTemplate),
@@ -55,15 +51,15 @@ impl IntoResponse for VerifyEmailActionResponse {
 }
 
 #[derive(Deserialize)]
-pub struct VerifyEmailFormData {
+pub struct VerifyEmailQueryParams {
     pub email: String,
-    pub verification_code: String,
+    pub otp: String,
 }
 pub async fn handle_verify_email_action(
     State(state): State<AppState>,
-    Form(form): Form<VerifyEmailFormData>,
+    Query(params): Query<VerifyEmailQueryParams>,
 ) -> Result<VerifyEmailActionResponse, TemplateError> {
-    let request = VerifyEmailRequest::new(form.verification_code, form.email).map_err(|e| {
+    let request = VerifyEmailRequest::new(params.otp, params.email).map_err(|e| {
         error!("Invalid verify email request: {}", e);
         TemplateError::InternalServerError
     })?;

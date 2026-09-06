@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use axum::http::StatusCode;
 use ethoko_central::{
+    externalcom::email::EmailTemplate,
     newtypes::{email::Email, handle::Handle, password::Password},
     users::models::{email_signup::SignupEmailBody, verify_email::VerifyEmailBody},
 };
@@ -43,11 +44,11 @@ async fn test_verify_email_200_valid_otp() {
     let otp = instance_state
         .email_service
         .get_emails_sent_to(&email)
-        .pop()
-        .expect("no email sent to user")
-        .strip_prefix("OTP: ")
-        .map(|s| s.trim().to_string())
-        .unwrap();
+        .first()
+        .map(|t| match t {
+            EmailTemplate::EmailVerificationCode(payload) => payload.otp.show().to_string(),
+        })
+        .expect("Expected an OTP email to be sent");
 
     let verify_email_body = VerifyEmailBody {
         email: email.to_string(),
@@ -76,11 +77,11 @@ async fn test_verify_email_400_already_verified() {
     let otp = instance_state
         .email_service
         .get_emails_sent_to(&email)
-        .pop()
-        .expect("no email sent to user")
-        .strip_prefix("OTP: ")
-        .map(|s| s.trim().to_string())
-        .unwrap();
+        .first()
+        .map(|t| match t {
+            EmailTemplate::EmailVerificationCode(payload) => payload.otp.show().to_string(),
+        })
+        .expect("Expected an OTP email to be sent");
 
     let verify_email_body = VerifyEmailBody {
         email: email.to_string(),
@@ -145,11 +146,11 @@ async fn test_verify_email_400_invalid_email() {
     let otp = instance_state
         .email_service
         .get_emails_sent_to(&email)
-        .pop()
-        .expect("no email sent to user")
-        .strip_prefix("OTP: ")
-        .map(|s| s.trim().to_string())
-        .unwrap();
+        .first()
+        .map(|t| match t {
+            EmailTemplate::EmailVerificationCode(payload) => payload.otp.show().to_string(),
+        })
+        .expect("Expected an OTP email to be sent");
 
     let verify_email_body = VerifyEmailBody {
         email: "invalid-email".to_string(),
@@ -178,11 +179,11 @@ async fn test_verify_email_400_expired_otp() {
     let otp = instance_state
         .email_service
         .get_emails_sent_to(&email)
-        .pop()
-        .expect("no email sent to user")
-        .strip_prefix("OTP: ")
-        .map(|s| s.trim().to_string())
-        .unwrap();
+        .first()
+        .map(|t| match t {
+            EmailTemplate::EmailVerificationCode(payload) => payload.otp.show().to_string(),
+        })
+        .expect("Expected an OTP email to be sent");
 
     // Simulate OTP expiration by advancing the time in the email service
     tokio::time::sleep(Duration::from_secs(3)).await; // Wait for OTP to expire (3 seconds)

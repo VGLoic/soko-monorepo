@@ -4,9 +4,8 @@ use crate::{
     config::RateLimitConfig,
     router::AppState,
     users::handlers::{
-        email_signup::handle_signup_email, render_verify_email::handle_render_verify_email,
-        resend_verification_otp::handle_resend_verification_otp, verify_email::handle_verify_email,
-        verify_email_action::handle_verify_email_action,
+        email_signup::handle_signup_email, resend_verification_otp::handle_resend_verification_otp,
+        verify_email::handle_verify_email, verify_email_action::handle_verify_email_action,
     },
 };
 use axum::{Router, routing::post};
@@ -30,9 +29,8 @@ pub fn auth_router(
         .route("/signup/email", post(handle_signup_email))
         .route(
             "/verify-email",
-            post(handle_verify_email).get(handle_render_verify_email),
+            post(handle_verify_email).get(handle_verify_email_action),
         )
-        .route("/verify-email/action", post(handle_verify_email_action))
         .route(
             "/resend-verification-otp",
             post(handle_resend_verification_otp),

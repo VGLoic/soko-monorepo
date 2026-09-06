@@ -1,11 +1,14 @@
 use std::sync::{Arc, Mutex};
 
-use ethoko_central::{externalcom::email::EmailService, newtypes::email::Email};
+use ethoko_central::{
+    externalcom::email::{EmailService, EmailTemplate},
+    newtypes::email::Email,
+};
 use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct FakeEmailService {
-    pub emails_sent: Arc<Mutex<Vec<(Email, String)>>>,
+    pub emails_sent: Arc<Mutex<Vec<(Email, EmailTemplate)>>>,
 }
 
 impl Default for FakeEmailService {
@@ -28,7 +31,7 @@ impl FakeEmailService {
     }
 
     #[allow(dead_code)]
-    pub fn get_emails_sent_to(&self, email: &Email) -> Vec<String> {
+    pub fn get_emails_sent_to(&self, email: &Email) -> Vec<EmailTemplate> {
         let emails_sent = self
             .emails_sent
             .lock()
@@ -36,9 +39,9 @@ impl FakeEmailService {
             .unwrap();
         emails_sent
             .iter()
-            .filter_map(|(e, content)| {
+            .filter_map(|(e, template)| {
                 if e == email {
-                    Some(content.clone())
+                    Some(template.clone())
                 } else {
                     None
                 }
@@ -49,15 +52,15 @@ impl FakeEmailService {
 
 #[async_trait::async_trait]
 impl EmailService for FakeEmailService {
-    async fn send_email(&self, email: Email, content: String) -> Result<(), anyhow::Error> {
+    async fn send_email(&self, email: Email, template: EmailTemplate) -> Result<(), anyhow::Error> {
         debug!(
-            "FakeEmailService: Sending email to {} with content: {}",
-            email, content
+            "FakeEmailService: Sending email to {} with template: {:?}",
+            email, template
         );
         let mut emails_sent = self.emails_sent.lock().map_err(|e| {
             anyhow::anyhow!("{e}").context("failed to acquire lock for emails_sent")
         })?;
-        emails_sent.push((email, content));
+        emails_sent.push((email, template));
         Ok(())
     }
 }

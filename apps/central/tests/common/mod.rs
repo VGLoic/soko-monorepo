@@ -31,6 +31,7 @@ impl TestConfigBuilder {
     pub fn new() -> Self {
         Self {
             config: Config {
+                self_url: "http://localhost".into(),
                 port: 0,
                 database_url: "postgresql://admin:admin@localhost:5433/central".into(),
                 log_level: Level::INFO,
@@ -46,6 +47,7 @@ impl TestConfigBuilder {
                     replenishment_per_second: 100,
                     max_burst_size: 1_000,
                 },
+                resend_api_key: "test_api_key".into(),
             },
         }
     }
