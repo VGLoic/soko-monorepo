@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use ethoko_central::{
-    auth::models::{requests::email_signup::SignupEmailBody, users_response},
+    auth::{requests::email_signup::SignupEmailBody, users_response},
     newtypes::{email::Email, handle::Handle, password::Password},
 };
 mod common;

@@ -1,6 +1,6 @@
 use dotenvy::dotenv;
 use ethoko_central::{
-    auth::{self, notifier::AUTH_JOB_TOPIC},
+    auth,
     config::Config,
     externalcom::email::ResendEmailService,
     httpserver::serve_http_server,
@@ -75,14 +75,14 @@ async fn main() -> Result<(), anyhow::Error> {
     let email_service =
         ResendEmailService::new(config.self_url.clone(), config.resend_api_key.clone());
 
-    let auth_repository = auth::repository::PsqlAuthRepository::new(pool);
-    let auth_notifier = auth::notifier::AuthNotifierImpl::new(job_queue.clone());
-    let auth_service = auth::service::AuthServiceImpl::new(
+    let auth_repository = auth::PsqlAuthRepository::new(pool);
+    let auth_notifier = auth::AuthNotifierImpl::new(job_queue.clone());
+    let auth_service = auth::AuthServiceImpl::new(
         auth_repository.clone(),
         auth_notifier,
         config.otp_config.clone(),
     );
-    let auth_job_processor = auth::notifier::job_processor::AuthJobProcessor::new(
+    let auth_job_processor = auth::AuthJobProcessor::new(
         auth_repository.clone(),
         email_service,
         config.otp_config.clone(),
@@ -92,7 +92,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let job_worker_token = cancellation_token.clone();
     let job_worker_handle = tokio::spawn(async {
         let root_processor = jobs::rootprocessor::RootProcessor::new(HashMap::from([(
-            AUTH_JOB_TOPIC.to_string(),
+            auth::AUTH_JOB_TOPIC.to_string(),
             Box::new(auth_job_processor) as Box<dyn JobProcessor>,
         )]));
         let worker = jobs::polling_worker::Worker::new(job_worker_queue, root_processor, 1_000);

@@ -1,7 +1,13 @@
 mod handlers;
-pub mod models;
-pub mod notifier;
+mod models;
+mod notifier;
 mod password_hasher;
-pub mod repository;
-pub mod router;
-pub mod service;
+mod repository;
+mod router;
+mod service;
+
+pub use models::{requests, users_response};
+pub use notifier::{AUTH_JOB_TOPIC, AuthNotifierImpl, job_processor::AuthJobProcessor};
+pub use repository::PsqlAuthRepository;
+pub use router::router;
+pub use service::{AuthService, AuthServiceImpl};

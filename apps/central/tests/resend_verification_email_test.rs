@@ -2,9 +2,7 @@ use std::time::Duration;
 
 use axum::http::StatusCode;
 use ethoko_central::{
-    auth::models::{
-        requests::email_signup::SignupEmailBody, requests::verify_email::VerifyEmailBody,
-    },
+    auth::requests::{email_signup::SignupEmailBody, verify_email::VerifyEmailBody},
     externalcom::email::EmailTemplate,
     newtypes::{email::Email, handle::Handle, password::Password},
 };
