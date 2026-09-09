@@ -37,11 +37,14 @@ impl<Q: Queue, Processor: JobProcessor> Worker<Q, Processor> {
                                     if let Err(e) = self.queue.success(job.id).await {
                                         error!("Failed to register success for job {}: {e:?}", job.id);
                                     }
+                                    info!("Successfully processed job: {:?}", job.id);
                                 }
-                                Err(_e) => {
+                                Err(process_e) => {
                                     if let Err(e) = self.queue.fail(job.id).await {
                                         error!("Failed to register failure for job: {:?}: {e:?}", job.id);
                                     }
+                                    error!("Failed to process job: {:?}: {process_e:?}", job.id);
+
                                 }
                             }
                         }

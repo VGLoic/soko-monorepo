@@ -1,4 +1,4 @@
-use tracing::error;
+use tracing::{error, info};
 
 use ethoko_central::jobs::{processor::JobProcessor, queue::Queue};
 
@@ -16,16 +16,19 @@ impl<Q: Queue, Processor: JobProcessor> ManualWorker<Q, Processor> {
 
     pub async fn consume_jobs(&self) -> Result<(), anyhow::Error> {
         while let Some(job) = self.queue.dequeue().await? {
+            info!("Processing job: {:?}", job.id);
             match self.processor.process_job(&job).await {
                 Ok(()) => {
                     if let Err(e) = self.queue.success(job.id).await {
                         error!("Failed to register success for job {}: {e:?}", job.id);
                     }
+                    info!("Successfully processed job: {:?}", job.id);
                 }
-                Err(_e) => {
+                Err(process_e) => {
                     if let Err(e) = self.queue.fail(job.id).await {
                         error!("Failed to register failure for job: {:?}: {e:?}", job.id);
                     }
+                    error!("Failed to process job: {:?}: {process_e:?}", job.id);
                 }
             }
         }

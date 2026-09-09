@@ -1,31 +1,98 @@
 use ethoko_central::{
-    config::Config,
+    auth,
+    config::{Config, OtpConfig},
     httpserver::serve_http_server,
     jobs::{memoryqueue::InMemoryQueue, processor::JobProcessor, rootprocessor::RootProcessor},
-    users::{self, notifier::USERS_JOB_TOPIC},
+    router::app_router,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::{collections::HashMap, net::SocketAddr, time::Duration};
 use tracing::{Level, error, level_filters::LevelFilter};
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::common::{manual_worker::ManualWorker, users_processor::FakeUserJobProcessor};
+use crate::common::{fake_email_service::FakeEmailService, manual_worker::ManualWorker};
+mod fake_email_service;
 mod manual_worker;
-mod users_processor;
 
 #[allow(dead_code)]
 pub struct InstanceState {
     pub reqwest_client: reqwest::Client,
     pub server_url: String,
-    pub users_processor: FakeUserJobProcessor,
+    pub email_service: FakeEmailService,
     pub job_worker: ManualWorker<InMemoryQueue, RootProcessor>,
 }
 
-pub fn default_test_config() -> Config {
-    Config {
-        port: 0,
-        database_url: "postgresql://admin:admin@localhost:5433/central".into(),
-        log_level: Level::INFO,
+pub struct TestConfigBuilder {
+    config: Config,
+}
+
+#[allow(dead_code)]
+impl TestConfigBuilder {
+    pub fn new() -> Self {
+        Self {
+            config: Config {
+                self_url: "http://localhost".into(),
+                port: 0,
+                database_url: "postgresql://admin:admin@localhost:5433/central".into(),
+                log_level: Level::INFO,
+                otp_config: OtpConfig {
+                    ttl_seconds: 10 * 60,
+                    cooldown_seconds: 60,
+                },
+                global_rate_limit_config: ethoko_central::config::RateLimitConfig {
+                    replenishment_per_second: 100,
+                    max_burst_size: 1_000,
+                },
+                auth_rate_limit_config: ethoko_central::config::RateLimitConfig {
+                    replenishment_per_second: 100,
+                    max_burst_size: 1_000,
+                },
+                resend_api_key: "test_api_key".into(),
+            },
+        }
+    }
+
+    pub fn build_default() -> Config {
+        Self::new().build()
+    }
+
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.config.port = port;
+        self
+    }
+
+    pub fn with_database_url(mut self, database_url: &str) -> Self {
+        self.config.database_url = database_url.into();
+        self
+    }
+
+    pub fn with_log_level(mut self, log_level: Level) -> Self {
+        self.config.log_level = log_level;
+        self
+    }
+
+    pub fn with_otp_ttl(mut self, ttl_seconds: u16) -> Self {
+        self.config.otp_config.ttl_seconds = ttl_seconds;
+        self
+    }
+
+    pub fn with_otp_cooldown(mut self, cooldown_seconds: u16) -> Self {
+        self.config.otp_config.cooldown_seconds = cooldown_seconds;
+        self
+    }
+
+    pub fn with_auth_rate_limit(
+        mut self,
+        replenishment_per_second: u64,
+        max_burst_size: u32,
+    ) -> Self {
+        self.config.auth_rate_limit_config.replenishment_per_second = replenishment_per_second;
+        self.config.auth_rate_limit_config.max_burst_size = max_burst_size;
+        self
+    }
+
+    pub fn build(self) -> Config {
+        self.config
     }
 }
 
@@ -58,15 +125,25 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
 
     let job_queue = InMemoryQueue::new(2);
 
-    let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
-    let users_job_processor = FakeUserJobProcessor::default();
-    let users_repository = users::repository::PsqlAccountsRepository::new(pool);
-    let users_service = users::service::UsersServiceImpl::new(users_repository, users_notifier);
+    let email_service = FakeEmailService::default();
+
+    let users_notifier = auth::AuthNotifierImpl::new(job_queue.clone());
+    let auth_repository = auth::PsqlAuthRepository::new(pool);
+    let auth_service = auth::AuthServiceImpl::new(
+        auth_repository.clone(),
+        users_notifier,
+        config.otp_config.clone(),
+    );
+    let users_job_processor = auth::AuthJobProcessor::new(
+        auth_repository.clone(),
+        email_service.clone(),
+        config.otp_config.clone(),
+    );
 
     let job_worker_queue = job_queue.clone();
     let job_worker_users_job_processor = users_job_processor.clone();
     let root_processor = RootProcessor::new(HashMap::from([(
-        USERS_JOB_TOPIC.to_string(),
+        auth::AUTH_JOB_TOPIC.to_string(),
         Box::new(job_worker_users_job_processor) as Box<dyn JobProcessor>,
     )]));
     let job_worker = ManualWorker::new(job_worker_queue, root_processor);
@@ -88,8 +165,14 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
         listener.local_addr().unwrap().port()
     );
 
+    let (app_router, _) = app_router(
+        config.global_rate_limit_config.clone(),
+        config.auth_rate_limit_config.clone(),
+        auth_service,
+    )
+    .unwrap();
     tokio::spawn(async move {
-        if let Err(e) = serve_http_server(listener, users_service).await {
+        if let Err(e) = serve_http_server(listener, app_router).await {
             error!("Error during http server graceful shutdown: {e:?}");
         }
     });
@@ -97,7 +180,7 @@ pub async fn setup_instance(config: &Config) -> Result<InstanceState, anyhow::Er
     Ok(InstanceState {
         server_url,
         job_worker,
-        users_processor: users_job_processor,
+        email_service,
         reqwest_client: reqwest::Client::new(),
     })
 }

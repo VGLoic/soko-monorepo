@@ -1,23 +1,23 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    auth::models::user::User,
     newtypes::{email::Email, handle::Handle},
-    users::models::user::User,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum UsersJob {
-    DummyJob(DummyJobPayload),
+pub enum AuthJob {
+    SendEmailVerificationOtp(SendEmailVerificationOtpPayload),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct DummyJobPayload {
+pub struct SendEmailVerificationOtpPayload {
     pub user_id: uuid::Uuid,
     pub user_email: Email,
     pub user_handle: Handle,
 }
 
-impl DummyJobPayload {
+impl SendEmailVerificationOtpPayload {
     pub fn new(user: &User) -> Self {
         Self {
             user_id: user.id,

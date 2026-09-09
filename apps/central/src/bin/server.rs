@@ -1,9 +1,11 @@
 use dotenvy::dotenv;
 use ethoko_central::{
+    auth,
     config::Config,
+    externalcom::email::ResendEmailService,
     httpserver::serve_http_server,
     jobs::{self, processor::JobProcessor},
-    users::{self, notifier::USERS_JOB_TOPIC},
+    router::app_router,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::{collections::HashMap, time::Duration};
@@ -70,17 +72,28 @@ async fn main() -> Result<(), anyhow::Error> {
         info!("Gracefully exiting job queue handle")
     });
 
-    let users_notifier = users::notifier::UsersNotifierImpl::new(job_queue.clone());
-    let users_job_processor = users::notifier::job_processor::UsersJobProcessor;
-    let users_repository = users::repository::PsqlAccountsRepository::new(pool);
-    let users_service = users::service::UsersServiceImpl::new(users_repository, users_notifier);
+    let email_service =
+        ResendEmailService::new(config.self_url.clone(), config.resend_api_key.clone());
+
+    let auth_repository = auth::PsqlAuthRepository::new(pool);
+    let auth_notifier = auth::AuthNotifierImpl::new(job_queue.clone());
+    let auth_service = auth::AuthServiceImpl::new(
+        auth_repository.clone(),
+        auth_notifier,
+        config.otp_config.clone(),
+    );
+    let auth_job_processor = auth::AuthJobProcessor::new(
+        auth_repository.clone(),
+        email_service,
+        config.otp_config.clone(),
+    );
 
     let job_worker_queue = job_queue.clone();
     let job_worker_token = cancellation_token.clone();
     let job_worker_handle = tokio::spawn(async {
         let root_processor = jobs::rootprocessor::RootProcessor::new(HashMap::from([(
-            USERS_JOB_TOPIC.to_string(),
-            Box::new(users_job_processor) as Box<dyn JobProcessor>,
+            auth::AUTH_JOB_TOPIC.to_string(),
+            Box::new(auth_job_processor) as Box<dyn JobProcessor>,
         )]));
         let worker = jobs::polling_worker::Worker::new(job_worker_queue, root_processor, 1_000);
 
@@ -102,7 +115,25 @@ async fn main() -> Result<(), anyhow::Error> {
         listener.local_addr().unwrap()
     );
 
-    if let Err(e) = serve_http_server(listener, users_service).await {
+    let (app_router, ip_rate_limiters) = app_router(
+        config.global_rate_limit_config.clone(),
+        config.auth_rate_limit_config.clone(),
+        auth_service,
+    )
+    .map_err(|e| e.context("Error while building the application router"))?;
+
+    let limiter_cleanup_token = cancellation_token.clone();
+    let limiter_cleanup_task = tokio::spawn(async move {
+        if let Err(e) = ip_rate_limiters
+            .run_cleanup_old_routine(limiter_cleanup_token)
+            .await
+        {
+            error!("Error during limiter cleanup task: {e:?}");
+        }
+        info!("Gracefully exiting limiter cleanup task")
+    });
+
+    if let Err(e) = serve_http_server(listener, app_router).await {
         error!("Error during http server graceful shutdown: {e:?}");
     }
 
@@ -115,6 +146,9 @@ async fn main() -> Result<(), anyhow::Error> {
     }
     if let Err(e) = job_queue_handle.await {
         error!("Error during job queue handler graceful shutdown: {e:?}");
+    }
+    if let Err(e) = limiter_cleanup_task.await {
+        error!("Error during limiter cleanup task graceful shutdown: {e:?}");
     }
 
     Ok(())

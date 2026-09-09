@@ -7,17 +7,51 @@ use tracing::Level;
 
 /// Public application configuration
 pub struct Config {
+    /// Self URL of the server, e.g. `https://example.com`
+    pub self_url: String,
     /// Server port
     pub port: u16,
     /// Database URL, in the format `postgresql://user:password@host:port/database`
     pub database_url: String,
     /// Application log level, has priority over `RUST_LOG` environment variable
     pub log_level: Level,
+    /// OTP configuration
+    pub otp_config: OtpConfig,
+    /// Global rate limit configuration
+    pub global_rate_limit_config: RateLimitConfig,
+    /// Auth rate limit configuration for specific public routes, e.g. re-send verification OTP
+    pub auth_rate_limit_config: RateLimitConfig,
+    /// Resend API key for sending emails
+    pub resend_api_key: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct OtpConfig {
+    /// Time to live in seconds for OTP
+    pub ttl_seconds: u16,
+    /// Cooldown between two OTP for a single user in seconds
+    pub cooldown_seconds: u16,
+}
+
+#[derive(Clone, Debug)]
+pub struct RateLimitConfig {
+    /// Maximum number of requests per second
+    pub replenishment_per_second: u64,
+    /// Maximum burst size
+    pub max_burst_size: u32,
 }
 
 impl Config {
     pub fn parse_from_env() -> Result<Self, Vec<anyhow::Error>> {
         let mut errors = Vec::new();
+
+        let self_url = match parse_required_env_variable::<String>("SELF_URL") {
+            Ok(v) => v,
+            Err(e) => {
+                errors.push(e);
+                "http://localhost:3000".into()
+            }
+        };
 
         let port = match parse_env_variable::<u16>("PORT") {
             Ok(v) => v.unwrap_or(3000),
@@ -43,14 +77,42 @@ impl Config {
             }
         };
 
+        let resend_api_key = match parse_required_env_variable::<String>("RESEND_API_KEY") {
+            Ok(v) => v,
+            Err(e) => {
+                errors.push(e);
+                "".into()
+            }
+        };
+
         if !errors.is_empty() {
             return Err(errors);
         }
 
+        let otp_config = OtpConfig {
+            ttl_seconds: 10 * 60,
+            cooldown_seconds: 60,
+        };
+
+        let global_rate_limit_config = RateLimitConfig {
+            replenishment_per_second: 2,
+            max_burst_size: 5,
+        };
+
+        let auth_rate_limit_config = RateLimitConfig {
+            replenishment_per_second: 1,
+            max_burst_size: 2,
+        };
+
         Ok(Config {
+            self_url,
             port,
             database_url,
             log_level,
+            otp_config,
+            global_rate_limit_config,
+            auth_rate_limit_config,
+            resend_api_key,
         })
     }
 }

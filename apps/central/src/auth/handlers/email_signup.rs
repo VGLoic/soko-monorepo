@@ -1,27 +1,14 @@
 use crate::{
-    newtypes::{email::EmailError, handle::HandleError, password::PasswordError},
-    router::{ApiError, AppState},
-    users::models::{
-        email_signup::{
+    auth::models::{
+        requests::email_signup::{
             EmailSignupError, EmailSignupRequest, EmailSignupRequestError, SignupEmailBody,
         },
-        user::User,
         users_response::UserResponse,
     },
+    newtypes::{email::EmailError, handle::HandleError, password::PasswordError},
+    router::{ApiError, AppState},
 };
 use axum::{Json, extract::State, http::StatusCode};
-
-impl From<User> for UserResponse {
-    fn from(user: User) -> Self {
-        UserResponse {
-            email: user.email,
-            handle: user.handle,
-            email_verified: user.email_verified,
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-        }
-    }
-}
 
 pub async fn handle_signup_email(
     State(state): State<AppState>,
@@ -29,7 +16,7 @@ pub async fn handle_signup_email(
 ) -> Result<(StatusCode, Json<UserResponse>), ApiError> {
     let request = EmailSignupRequest::new(body.email, body.handle, body.password)?;
 
-    let (user, _auth_credential) = state.users_service.signup_with_email(request).await?;
+    let (user, _auth_credential) = state.auth_service.signup_with_email(request).await?;
 
     Ok((StatusCode::CREATED, Json(user.into())))
 }

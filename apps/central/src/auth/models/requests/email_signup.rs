@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    auth::password_hasher,
     newtypes::{
         email::{Email, EmailError},
         handle::{Handle, HandleError},
         password::{Password, PasswordError},
     },
-    users::password_hasher,
 };
 
 #[derive(Deserialize, Serialize)]
